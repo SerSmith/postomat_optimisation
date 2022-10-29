@@ -132,3 +132,6 @@ dmypy.json
 
 # VSCode settings
 .vscode
+
+# passes
+secrets.py
