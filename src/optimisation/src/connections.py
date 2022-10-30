@@ -71,6 +71,24 @@ class DB:
         connection.close()
         return df
 
+    @staticmethod
+    def __make_filter(column, value_list):
+        # value_list_quates = ["'" + str(s) + "'" for s in value_list ]
+        value_list_quates = [str(s) for s in value_list ]
+        value_list_str = ", ".join(value_list_quates)
+        return f"{column} IN ({str(value_list_str)})"
+
+
+    def get_by_filter(self, table_name: str, filter_dict) -> pd.DataFrame:
+
+        connection = self.__create_connection()
+        where_str = "AND ".join([self.__make_filter(k, filter_dict[k]) for k in filter_dict])
+        query = f"select * from {table_name} WHERE {where_str}"
+        df = pd.read_sql_query(query, connection)
+        connection.close()
+        return df
+
+
 if __name__ == "__main__":
     CONFIG_PATH = "/Users/sykuznetsov/Desktop/db_config.json"
 
@@ -79,7 +97,7 @@ if __name__ == "__main__":
 
     db = DB(db_config)
 
-    tmp = pd.DataFrame([[1, 2]], columns=['A', 'B'])
+    tmp = pd.DataFrame([[1, 2]], columns=['col1', 'col2'])
     db.load_to_bd(tmp, 'tmp')
 
     loaded1 = db.get_table_from_bd('tmp')
@@ -89,5 +107,11 @@ if __name__ == "__main__":
     loaded2 = db.get_by_sql('SELECT * FROM tmp')
 
     print(loaded2)
+
+    loaded4 = db.get_by_sql('SELECT * FROM tmp')
+
+
+    loaded3 = db.get_by_filter("tmp", {"col1": [1, 3]})
+    print(loaded3)
 
     
