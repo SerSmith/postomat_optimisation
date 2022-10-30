@@ -1,3 +1,7 @@
+"""Функции для подготовки сырых данных
+для загрузки в базу данных
+"""
+
 import os
 import re
 from warnings import warn
@@ -11,13 +15,23 @@ OBJECT_ID_COL = 'OBJECT_ID'
 
 
 def codes_to_str(codes_series: pd.Series) -> pd.Series:
+    """Коды при загрузке данных при наличии пропусков загружаются как float
+    и в конце кода ставится ".0"
+     Исправляем эту проблему: коды переводим в строковый формат, удаляем ".0"
+
+    Args:
+        codes_series (pd.Series): серия с кодами (ИНН, КПП и т.д.)
+
+    Returns:
+        pd.Series: серия с исправленными кодами (ИНН, КПП и т.д.)
+    """
     return codes_series.fillna('').astype(str).apply(lambda x: x.split('.')[0])
 
 
 def get_filenames_from_dir(path: str,
                           mandatory_substr: str='',
                           include_subdirs: bool=True,
-                          file_extensions: Optional[List[str]]=None):
+                          file_extensions: Optional[List[str]]=None) -> List[str]:
     """Получает пути к файлам с данными из директории и поддиректорий
 
     Args:
@@ -48,8 +62,8 @@ def get_filenames_from_dir(path: str,
 
 
 def get_text_hash(text: str) -> str:
-    """Получает хэш текста, нужна для однозначного индексирования данных
-    результата get_data_for_match в т.ч. при распределенных вычислениях
+    """Получает хэш текста, нужна для однозначного индексирования данных,
+     используется в get_row_hashes
 
     Args:
         text (str): текст
