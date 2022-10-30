@@ -132,3 +132,6 @@ dmypy.json
 
 # VSCode settings
 .vscode
+
+# папка с предобработанными данными о домах/сооружениях
+Notebooks/prepare_data/data/*
