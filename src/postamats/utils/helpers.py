@@ -7,6 +7,9 @@ import numpy as np
 # Радиус Земли на широте Москвы
 EARTH_R = 6363568
 
+# скорость ходьбы в метрах
+WALK_SPEED = 5000 / 3600
+
 def find_center_mass(x: np.array,
                      y: np.array,
                      m: np.array) -> Tuple[float, float, float]:
