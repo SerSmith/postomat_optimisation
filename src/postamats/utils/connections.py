@@ -2,6 +2,7 @@
 """Функции для работы с базой данных
 """
 import json
+from warnings import warn
 from sqlalchemy import create_engine
 import psycopg2
 import pandas as pd
@@ -46,6 +47,17 @@ class DB:
             table_name (str): куда сохраняем
         """
         engine = create_engine(self.connection_for_engine)
+        incorrect_case_cols = [col for col in df.columns if col.isupper()]
+
+        if incorrect_case_cols:
+            warn(
+                f'В названиях колонок есть uppercase: {incorrect_case_cols}'
+                ' postgress имеет проблемы с uppercase, будет выполнен lower()'
+                )
+            df = df.copy()
+            df.columns = [col.lower() for col in df.columns]
+            warn(f'Новые названия колонок: {df.columns}')
+
         df.to_sql(table_name, con=engine, index=False, if_exists ='replace')
         engine.dispose()
 
