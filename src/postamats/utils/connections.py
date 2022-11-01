@@ -2,6 +2,7 @@
 """Функции для работы с базой данных
 """
 import json
+import os
 from sqlalchemy import create_engine
 import psycopg2
 import pandas as pd
@@ -10,13 +11,21 @@ import pandas as pd
 class DB:
     """Класс для подключения к БД и работы с ней
     """
-    def __init__(self, db_config):
-
-        self.host = db_config['host']
-        self.login = db_config['login']
-        self.passw = db_config['passw']
-        self.port = db_config['port']
-        self.db_name = db_config['db_name']
+    def __init__(self, db_config=None):
+        
+        if db_config is None:
+            # По хорошему это надо хранить в секретах, но разбираться в секретнице клауда времени нет(
+            self.host = os.environ['db_host']
+            self.login = os.environ['db_login']
+            self.passw = os.environ['db_passw']
+            self.port = os.environ['db_port']
+            self.db_name = os.environ['db_name']
+        else:
+            self.host = db_config['host']
+            self.login = db_config['login']
+            self.passw = db_config['passw']
+            self.port = db_config['port']
+            self.db_name = db_config['db_name']
 
         self.connection_for_engine = \
             f"postgresql+psycopg2://{self.login}:{self.passw}@{self.host}:{self.port}/{self.db_name}"
