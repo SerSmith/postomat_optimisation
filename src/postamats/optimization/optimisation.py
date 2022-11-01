@@ -3,15 +3,25 @@ from pyomo.opt import SolverFactory
 import pandas as pd
 import datetime
 
+import json
+from connections import DB
 
 
-def optimisatin(args):
+def optimisatin(fixed_points, possible_postomats):
+
+    CONFIG_PATH = "/Users/sykuznetsov/Desktop/db_config.json"
+
+    with open(CONFIG_PATH) as f:
+        db_config = json.load(f)
+
+    db = DB(db_config)
  
-    POPULATION_POINTS = []
+    population_points_pd = db.get_by_filter("tst_center_mass_29102022", {"step": 1})
+    POPULATION_POINTS = population_points_pd["object_id"].unique()
 
-    POSTOMAT_PLACES = []
+    POSTOMAT_PLACES = fixed_points + possible_postomats
 
-    DISTANSES = {}
+    DISTANSES = db.get_by_filter("fake_distances_matrix", {"object_id": possible_postomats})
 
     # Создание конкретной модели pyomo
     model = pyo.ConcreteModel()
