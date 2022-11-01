@@ -9,7 +9,7 @@ COPY ./ /code/
 
 # 
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
-RUN pip install /code/.
+RUN pip install -e /code/.
 
 
 # 
