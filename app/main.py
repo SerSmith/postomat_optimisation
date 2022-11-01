@@ -1,7 +1,7 @@
 from typing import Union
 import os
 
-from postamats import connections
+from postamats.utils import connections
 
 from fastapi import FastAPI
 
