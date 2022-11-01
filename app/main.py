@@ -21,4 +21,4 @@ def get_all_postomat_places():
 
     all_postamat_places = db.get_table_from_bd("all_objects_data")
 
-    return all_postamat_places.to_dict(orient="records")
+    return all_postamat_places.to_json(orient='records')
