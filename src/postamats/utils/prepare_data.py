@@ -5,13 +5,22 @@
 import os
 import re
 from warnings import warn
-import hashlib
 from typing import Optional, List
-from shapely.geometry import Polygon
-import numpy as np
 import pandas as pd
+import numpy as np
+from tqdm import tqdm
+from time import sleep
 
-OBJECT_ID_COL = 'OBJECT_ID'
+import geopandas as gpd
+from shapely.geometry import Polygon
+
+from postamats.utils import helpers
+from postamats.global_constants import NAN_VALUES, OBJECT_ID_COL, DMR_COLS_MAP,\
+    DMR_GEODATA_COL, DMR_KAD_NUM_COLS, LATITUDE_COL, LONGITUDE_COL, ADM_AREA_TO_EXCLUDE,\
+        GIS_COLS_MAP, OBJECT_ID_GIS_COL, OBJECT_TYPE_COL
+
+tqdm.pandas()
+
 # куда складывать промежуточные данные при подготовке табличек
 # содержимое папки добавлено в гитигнор, данные будут там появлять локально пи выполнении скриптов
 PREPARED_DATA_PATH = 'Notebooks/prepare_data/data'
@@ -20,11 +29,11 @@ PREPARED_DATA_PATH = 'Notebooks/prepare_data/data'
 # https://data.mos.ru/opendata/60562/data/table?versionNumber=3&releaseNumber=823
 # https://dom.gosuslugi.ru/#!/houses
 # которые используются для подготовки финальных табличек для заливки в базу
-PREPARED_GIS_FILE = 'prepare_gis_houses_data.pickle'
-PREPARED_DMR_FILE = 'prepare_dmr_houses_data.pickle'
-
-# как мы назовем колонку с координатами центроида полигона
-GEODATA_CENTER_COL = 'GEODATA_CENTER'
+RAW_GIS_NAME = 'raw_gis_houses_data'
+RAW_DMR_NAME = 'raw_dmr_houses_data'
+# название таблички с данными жилых домов
+# построенной на базе RAW_GIS_NAME и RAW_DMR_NAME
+APARTMENT_HOUSES_NAME = 'apartment_houses_all_data'
 
 
 def codes_to_str(codes_series: pd.Series) -> pd.Series:
@@ -38,7 +47,7 @@ def codes_to_str(codes_series: pd.Series) -> pd.Series:
     Returns:
         pd.Series: серия с исправленными кодами (ИНН, КПП и т.д.)
     """
-    return codes_series.fillna('').astype(str).apply(lambda x: x.split('.')[0])
+    return codes_series.fillna('').astype(str).progress_apply(lambda x: x.split('.')[0])
 
 
 def get_filenames_from_dir(path: str,
@@ -74,20 +83,7 @@ def get_filenames_from_dir(path: str,
     return files_list
 
 
-def get_text_hash(text: str) -> str:
-    """Получает хэш текста, нужна для однозначного индексирования данных,
-     используется в get_row_hashes
-
-    Args:
-        text (str): текст
-
-    Returns:
-        str: хэш
-    """
-    return hashlib.sha256(str(text).encode('utf-8')).hexdigest()
-
-
-def get_row_hashes(data: pd.DataFrame) -> pd.Series:
+def create_object_id(data: pd.DataFrame) -> pd.Series:
     """Получает хэш строки датафрейма
     нужен для создания айдишника объекта
 
@@ -98,7 +94,7 @@ def get_row_hashes(data: pd.DataFrame) -> pd.Series:
         pd.Series: _description_
     """
     row = data.astype(str).sum(axis=1)
-    return row.apply(get_text_hash)
+    return row.progress_apply(helpers.get_text_hash)
 
 
 def create_geolist(geo_str: str) -> list:
@@ -138,43 +134,237 @@ def prepare_kad_num(kad_num: str) -> str:
     return kad_num
 
 
-def calc_polygon_centroid(coords: List[List[float]]) -> List[float]:
-    """Вычисляет координаты цетроида полигона
-     В данных вместо полигонов встречаются точки и линии, функция их тоже обрабатывает
+def prepare_geodata_add_lat_lon(data: pd.DataFrame,
+                                geodata_col: str,
+                                geo: bool=False,
+                                latitude_col: str=LATITUDE_COL,
+                                longitude_col: str=LONGITUDE_COL,
+                                longitude_first: bool=True) -> pd.DataFrame:
+    """Преобразует строку с данными о вершинах полигона в список
+     добавляет колонки с координатами центроида полигона
+    - lat - широта
+    - lon - долгота
 
     Args:
-        coords (List[List[float]]): координаты в формате
-         [[x1, y1], [x2, y2], [x3, y3], ...]
+        data (pd.DataFrame): датафрейм с колонкой geodata_col
+        geodata_col (str): колонка с данными полигона
+        geo (bool): True если хотим на выходе получить geopandas
+        latitude_col (str, optional): как назовем колонку широты. Defaults to LATITUDE_COL.
+        longitude_col (str, optional): как назовем колонку долготы. Defaults to LONGITUDE_COL.
+        longitude_first (bool, optional): если в геоданных долгота стоит на первом месте.
+         Defaults to True.
+
+    Raises:
+        ValueError: _description_
 
     Returns:
-        List[float]: координаты центроида в формате [x_c, y_c]
+        pd.DataFrame: _description_
     """
-    # для тестирования:
-    # print(calc_polygon_centroid([[0,0], [1,0], [1,1], [0,1]]),
-    #       'expect: [.5, .5]')
-    # print(calc_polygon_centroid([[0,1], [0,-1], [2,0]]),
-    #       'expect: [2/3, 0]')
-    # print(calc_polygon_centroid([[0,-1], [0,1], [2,0]]),
-    #       'expect: [2/3, 0]')
-    # print(calc_polygon_centroid([[0,0], [1,0], [1.5,0.5], [1,1], [0,1], [-.5,.5]]),
-    #       'expect: [.5, .5]')
+    data = data.copy()
+    data[geodata_col] = data[geodata_col].progress_apply(create_geolist)
+    centroid = data[geodata_col].progress_apply(helpers.calc_polygon_centroid)
+    data[geodata_col] = data[geodata_col].apply(lambda x: x if x != [] else np.nan)
 
-    if not isinstance(coords, list):
-        warn('coords is not list')
-        return np.nan
-    if coords==[]:
-        warn('coords is empty')
-        return np.nan
-    if len(coords)==1:
-        warn('coords is dot')
-        return coords[0]
-    if len(coords)==2:
-        warn('coords is line')
-        x1 = coords[0][0]
-        y1 = coords[0][1]
-        x2 = coords[1][0]
-        y2 = coords[1][1]
-        return [(x1+x2)/2, (y1+y2)/2]
+    lon_i, lat_i = 0, 1
 
-    plgn = Polygon(coords)
-    return list(plgn.centroid.coords)[0]
+    if not longitude_first:
+        lon_i, lat_i = 1, 0
+
+    data[latitude_col] = centroid.apply(lambda x: x[lat_i] if isinstance(x, list) else np.nan)
+    data[longitude_col] = centroid.apply(lambda x: x[lon_i] if isinstance(x, list) else np.nan)
+
+    # проверяем корректность полученных данных
+    # мы работаем в москве, значит
+    # долгота должна начинаться с 5 а широта с 3
+    lat_lon = data[[latitude_col, longitude_col]].dropna()
+    invalid_lat = (lat_lon[latitude_col] // 10).astype(int) != 5
+    invalid_lon = (lat_lon[longitude_col] // 10).astype(int) != 3
+    invalid_data = lat_lon[invalid_lat | invalid_lon]
+    if invalid_data.shape[0] != 0:
+        raise ValueError(f'Ошибки в координатах: {invalid_data}')
+    if geo:
+        print('geo is True, creating polygons started')
+        sleep(.5)
+        data[geodata_col] = data[geodata_col].progress_apply(
+            lambda x: Polygon(x) if isinstance(x,list) else np.nan
+            )
+        data = gpd.GeoDataFrame(data, geometry=geodata_col)
+    return data
+
+
+def prepare_dmr_houses_data(data_path: str, geo: bool=False) -> pd.DataFrame:
+    """Подготовка данных prepareв_dmr_houses_data
+     Адресного реестра объектов недвижимости города Москвы
+
+     Используется в prepare_apartment_houses_data для создания и заливки
+     в БД таблички prepared_dmr_houses_data, apartment_houses_all_data
+
+    Где взять сырые данные:
+    - нужно зайти по ссылке или найти поиском на https://data.mos.ru
+    - найти датасет "Адресный реестр объектов недвижимости города Москвы"
+    - скачать его в формате json
+
+    Args:
+        data_path (str): путь к файлу json с данными
+        geo (bool): если хотим получить geopandas с полигонами
+        в geodata
+
+    Returns:
+        pd.DataFrame: prepared_dmr_houses_data
+    """
+    print('prepare_dmr_houses_data started ... ')
+    print(f'loading {data_path} ... ', end='')
+    data = pd.read_json(data_path, encoding='cp1251', typ='frame')
+    print('success')
+    data.columns = [col.upper() for col in data.columns]
+
+    # все пропуски приводим к nan
+    data = data.replace({val: np.nan for val in NAN_VALUES})\
+        .dropna(axis=1, how='all').dropna(axis=0, how='all')# pylint: disable=[no-member]
+
+    # исправляем кадастровые номера
+    for col in DMR_KAD_NUM_COLS:
+        data[col] = data[col].progress_apply(prepare_kad_num)
+
+    # исправляем данные о точках полигона
+    # и добавляем координаты центроида полигона
+
+    # n_fias я вляется ключом для связи с gis_houses_data
+    data['N_FIAS'] = data['N_FIAS'].str.upper()
+    data = data[~data['ADM_AREA'].isin(ADM_AREA_TO_EXCLUDE)]
+    data['NREG'] = codes_to_str(data['NREG'])
+    data['KLADR'] = codes_to_str(data['KLADR'])
+
+    data = data[DMR_COLS_MAP.keys()]
+    data.columns = [DMR_COLS_MAP[col] for col in data.columns]
+
+    data = prepare_geodata_add_lat_lon(data,
+                                       geodata_col=DMR_COLS_MAP[DMR_GEODATA_COL],
+                                       geo=geo)
+    print('create_object_id started')
+    data[OBJECT_ID_COL] = create_object_id(data)
+    print('prepare_dmr_houses_data finished')
+
+    return data.drop_duplicates(subset=OBJECT_ID_COL).reset_index(drop=True)
+
+
+def prepare_gis_houses_data(data_path: str) -> pd.DataFrame:
+    """Подготовкой данных ГИС ОЖФ prepared_gis_houses_data
+
+    используется в prepare_apartment_houses_data для создания и заливки
+     в БД таблички prepared_gis_houses_data, apartment_houses_all_data
+
+    Где взять сырые данные:
+    - нужно зайти по ссылке https://dom.gosuslugi.ru/#!/houses
+     или найти поиском "Реестр объектов жилищного фонда"
+    - выбрать в Субъект РФ "Москва"
+    - нажать "Найти" внизу справа
+    - нажать "Скачать" вверху справа
+    - скачается папка/архив с несколькими csv, её и будем обрабатывать
+
+    Args:
+        data_path (str): путь к папке с csv
+
+    Returns:
+        pd.DataFrame: prepared_gis_houses_data
+    """
+    living_area_col = 'Жилая площадь в доме'
+    guid_fias_col = 'Глобальный уникальный идентификатор дома по ФИАС'
+    oktmo_col = 'Код ОКТМО'
+    ogrn_col = 'ОГРН организации, осуществляющей управление домом'
+    kpp_col = 'КПП организации, осуществляющей управление домом'
+
+    print('prepare_dmr_houses_data started ... ')
+    print(f'loading {data_path} ... ')
+    houses_data_files = get_filenames_from_dir(data_path,
+                                               mandatory_substr='csv')
+    houses_data_list = []
+    print('files from path:', houses_data_files)
+    for hdf in houses_data_files:
+        houses_data_list.append(pd.read_csv(hdf, delimiter=';', low_memory=False))
+
+    houses_data = pd.concat(houses_data_list, ignore_index=True)\
+        .drop_duplicates().reset_index(drop=True)
+    print('success')
+
+    houses_data[guid_fias_col] = houses_data[guid_fias_col].str.upper()
+
+    # убираем данные о комнатах и помещениях
+    not_room = houses_data['Номер помещения (блока)'].isna() & houses_data['Номер комнаты'].isna()
+    houses_data_not_room = houses_data[not_room].copy()
+
+    # все пропуски приводим к nan
+    houses_data_not_room = houses_data_not_room.replace({val: np.nan for val in NAN_VALUES})\
+        .dropna(axis=1, how='all').dropna(axis=0, how='all')
+    houses_data_not_room = houses_data_not_room.drop_duplicates()
+    houses_data_not_room[living_area_col] = houses_data_not_room[living_area_col]\
+        .str.replace(',', '.').astype(float)
+
+    for col in [oktmo_col, ogrn_col, kpp_col]:
+        houses_data_not_room[col] = codes_to_str(houses_data_not_room[col])
+
+    prepared_data = houses_data_not_room[GIS_COLS_MAP.keys()].copy()
+    prepared_data.columns = [
+        GIS_COLS_MAP[col] for col in prepared_data.columns
+        ]
+
+    print('create_object_id started')
+    prepared_data[OBJECT_ID_GIS_COL] = create_object_id(prepared_data)
+    print('prepare_dmr_houses_data finished')
+
+    return prepared_data.drop_duplicates(subset=OBJECT_ID_GIS_COL).reset_index(drop=True)
+
+
+def prepare_apartment_houses_data(prepared_dmr: pd.DataFrame,
+                                  prepared_gis: pd.DataFrame) -> pd.DataFrame:
+    """_summary_
+
+    Args:
+        prepared_dmr (pd.DataFrame): подготовленные данные
+         Адресного реестра объектов недвижимости города Москвы
+        prepared_gis (pd.DataFrame): подготовленные данные ГИС ОЖФ
+
+    Returns:
+        pd.DataFrame: apartment_houses_all_data
+    """
+    print('prepare_apartment_houses_data started ... ')
+    data_merged_fias = prepared_dmr.merge(
+        prepared_gis,
+        left_on='guid_fias',
+        right_on='guid_fias_gis',
+        how='left'
+        )
+
+    data_merged_kadn = prepared_dmr.dropna(subset=['kad_n']).merge(
+        prepared_gis.dropna(subset=['kad_n_gis']),
+        left_on='kad_n',
+        right_on='kad_n_gis',
+        how='inner'
+        )
+
+    data_merged_kadzu = prepared_dmr.dropna(subset=['kad_zu']).merge(
+        prepared_gis.dropna(subset=['kad_n_gis']),
+        left_on='kad_zu',
+        right_on='kad_n_gis',
+        how='inner'
+        )
+
+    data_merged = pd.concat([data_merged_fias, data_merged_kadn, data_merged_kadzu])
+
+    # все пропуски приводим к nan
+    data_merged = data_merged.replace({val: np.nan for val in NAN_VALUES})\
+        .dropna(axis=1, how='all').dropna(axis=0, how='all')
+
+    # удаляем строки без геопозиции и площади
+    data_merged = data_merged.dropna(subset=[LATITUDE_COL, LONGITUDE_COL, 'total_area_gis'])
+
+    # удаляем дубли: сортируем по наличию данных о доме и если дубль,
+    # то удаляем тот, у которого нет данных о доме (оставляем last)
+    data_merged['has_house_data'] = data_merged['guid_house_gis'].notna()
+    data_merged = data_merged.sort_values(by='has_house_data')
+    data_merged = data_merged.drop_duplicates(subset=OBJECT_ID_COL, keep='last')
+    data_merged = data_merged.drop(columns='has_house_data')
+
+    data_merged[OBJECT_TYPE_COL] = 'многоквартирный дом'
+    print('prepare_apartment_houses_data finished')
+    return data_merged.reset_index(drop=True)

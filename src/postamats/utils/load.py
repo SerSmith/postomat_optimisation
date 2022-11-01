@@ -17,3 +17,11 @@ def get_full_path_from_relative(relative_path: str) -> str:
         str: абсолютный путь
     """
     return os.path.join(PATH_TO_ROOT, relative_path)
+
+
+class FillDatabase():
+    """Класс служит для заполнения базы данными
+    """
+
+    def __init__(self) -> None:
+        pass
