@@ -1,7 +1,10 @@
 """Вспомогательные функции
 """
-from typing import Tuple
+from typing import Tuple, List
+import hashlib
+from warnings import warn
 from math import radians, cos, sin, asin, sqrt
+from shapely.geometry import Polygon
 import numpy as np
 
 # Радиус Земли на широте Москвы
@@ -53,3 +56,54 @@ def haversine(lat1: float, lon1: float,
     hav_dist = 2 * asin(sqrt(hav_arg))
     distance = EARTH_R * hav_dist
     return distance
+
+
+def calc_polygon_centroid(coords: List[List[float]]) -> List[float]:
+    """Вычисляет координаты цетроида полигона
+     В данных вместо полигонов встречаются точки и линии, функция их тоже обрабатывает
+
+    Args:
+        coords (List[List[float]]): координаты в формате
+         [[x1, y1], [x2, y2], [x3, y3], ...]
+
+    Returns:
+        List[float]: координаты центроида в формате [x_c, y_c]
+    """
+    # для тестирования:
+    # assert calc_polygon_centroid([[0,0], [1,0], [1,1], [0,1]]) == [.5, .5]
+    # assert calc_polygon_centroid([[0,1], [0,-1], [2,0]]) == [2/3, 0]
+    # assert calc_polygon_centroid([[0,-1], [0,1], [2,0]]) == [2/3, 0]
+    # assert calc_polygon_centroid([[0,0], [1,0], [1.5,0.5], [1,1], [0,1], [-.5,.5]]) == [.5, .5]
+
+    if not isinstance(coords, list):
+        warn(f"{coords} is not list: {type(coords)}")
+        return np.nan
+    if coords==[]:
+        warn('coords is empty')
+        return np.nan
+    if len(coords)==1:
+        warn('coords is dot')
+        return coords[0]
+    if len(coords)==2:
+        warn('coords is line')
+        x1 = coords[0][0]
+        y1 = coords[0][1]
+        x2 = coords[1][0]
+        y2 = coords[1][1]
+        return [(x1+x2)/2, (y1+y2)/2]
+
+    plgn = Polygon(coords)
+    return list( list(plgn.centroid.coords)[0] )
+
+
+def get_text_hash(text: str) -> str:
+    """Получает хэш текста, нужна для однозначного индексирования данных,
+     используется в get_row_hashes
+
+    Args:
+        text (str): текст
+
+    Returns:
+        str: хэш
+    """
+    return hashlib.sha256(str(text).encode('utf-8')).hexdigest()
