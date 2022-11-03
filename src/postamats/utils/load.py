@@ -1,16 +1,16 @@
 """Скрипты для заполнения базы данными
 """
 import os
-from typing import Dict
+from typing import Dict, List, Optional
 import json
-from pathlib import Path
 import pandas as pd
-from postamats.utils import prepare_data, connections
+from postamats.utils import prepare_data, connections, helpers
 from postamats.utils.connections import PATH_TO_ROOT
 from postamats.global_constants import MANDATORY_COLS, OBJECT_ID_COL, OBJECT_TYPE_COL,\
-    RAW_DMR_NAME, RAW_GIS_NAME, APARTMENT_HOUSES_NAME, ALL_OBJECTS_NAME,\
+    RAW_DMR_NAME, RAW_GIS_NAME, APARTMENT_HOUSES_NAME, ALL_OBJECTS_NAME, CENTER_MASS_NAME,\
         KIOSKS_OT, MFC_OT, LIBS_OT, CLUBS_OT, SPORTS_OT,\
-            INFRA_TABLES_NAMES_BY_OBJECTS, INFRA_GEODATA_COL, INFRA_NEEDED_COLS_BY_OBJECTS
+            INFRA_TABLES_NAMES_BY_OBJECTS, INFRA_GEODATA_COL, INFRA_NEEDED_COLS_BY_OBJECTS,\
+                LIST_STEP, MOSCOW_POPULATION_NAME
 
 def get_full_path_from_relative(relative_path: str) -> str:
     """Превращает относительный путь в абсолютный
@@ -42,6 +42,95 @@ def get_query_from_file(sql_name: str) -> str:
     return content
 
 
+class MakeCenterMass():
+    """Класс для расчета и заливки в БД табличку с координатами
+     центра масс сектора территории по населению этой территории
+    """
+    def __init__(self,
+                config_path: str) -> None:
+        """_summary_
+
+        Args:
+                config_path (str): путь к json с реквизитами базы данных
+        """
+
+        with open(config_path, mode='r', encoding='utf-8') as db_file:
+            db_config = json.load(db_file)
+        self.__database = connections.DB(db_config)
+        self.center_mass = pd.DataFrame()
+        self.apartment_houses = pd.DataFrame()
+
+
+    def load_apartment_houses(self) -> None:
+        """Загружает табличку с данными о населении и метоположении
+        жилых домов
+        """
+        self.apartment_houses = self.__database.get_table_from_bd(APARTMENT_HOUSES_NAME)
+
+
+    def make_center_mass(self,
+                         list_step: Optional[List[float]]=None) -> None:
+        """Рассчитывает табличку с координатами
+        центра масс сектора территории по населению этой территории
+
+        Args:
+            config_path (str): путь к json с реквизитами базы данных
+            list_step (List[float], optional): список размеров величины шага в км в сетке,
+             которую мы накладываем на дома. Defaults to None.
+        """
+        if list_step is None:
+            list_step = LIST_STEP
+
+        apartment_houses = self.get_apartment_houses()
+
+        # расчет по данным о плотности населения Москвы в целом
+        # apartment_houses['population'] = apartment_houses['total_area_gis']/22
+
+        lat_km, lon_km = helpers.find_degreee_to_distance(apartment_houses)
+        distance_to_degree = {'lat': 1/lat_km, 'lon': 1/lon_km}
+        df_result = pd.DataFrame()
+        for step in list_step:
+            df_result_step = helpers.make_net_with_center_mass(apartment_houses,
+                                                               step,
+                                                               distance_to_degree)
+            df_result = pd.concat([df_result_step,df_result])
+        self.center_mass = df_result
+
+
+    def make_center_mass_load_to_db(self,
+                                    list_step: Optional[List[float]]=None) -> None:
+        """Подгружает из базы данные о домах и их населении,
+        рассчитывает табличку с координатами центра масс сектора территории
+         по населению этой территории и грузит её в базу данных
+        """
+        self.load_apartment_houses()
+        self.make_center_mass(list_step=list_step)
+        self.load_to_db()
+
+
+    def load_to_db(self):
+        """Грузит self.center_mass в БД
+        """
+        center_mass = self.get_center_mass()
+        self.__database.load_to_bd(center_mass, CENTER_MASS_NAME)
+
+
+    def get_center_mass(self) -> pd.DataFrame:
+        """getter
+        """
+        if self.center_mass.shape[0] == 0:
+            raise ValueError('center_mass is absend, run make_center_mass')
+        return self.center_mass
+
+
+    def get_apartment_houses(self):
+        """getter
+        """
+        if self.apartment_houses.shape[0] == 0:
+            raise ValueError('apartment_houses is absend, run load_apartment_houses')
+        return self.apartment_houses
+
+
 class FillDatabase():
     """Класс служит для заполнения базы данными
     """
@@ -61,6 +150,7 @@ class FillDatabase():
         self.prepared_gis = pd.DataFrame()
         self.apartment_houses = pd.DataFrame()
         self.infrastructure_objects = {}
+        self.moscow_population = pd.DataFrame()
         self.all_objects = pd.DataFrame()
         with open(config_path, mode='r', encoding='utf-8') as db_file:
             db_config = json.load(db_file)
@@ -117,6 +207,15 @@ class FillDatabase():
         self.prepared_gis = prepared_gis
 
 
+    def read_moscow_population(self,
+                               file_name: str='moscow_population.csv'):
+        """Читает данные о населении Москвы по муниципальным округам
+         Взяты отсюда: https://gogov.ru/population-ru/msk
+        """
+        self.moscow_population = \
+            pd.read_csv(os.path.join(self.data_root_path, file_name))
+
+
     def prepare_apartment_houses(self) -> None:
         """подготовка и загрузка apartment_houses_all_data
         """
@@ -124,6 +223,11 @@ class FillDatabase():
         apartment_houses = prepare_data.prepare_apartment_houses_data(
             self.get_prepared_dmr(), self.get_prepared_gis()
             )
+        moscow_population = self.get_moscow_population()
+        apartment_houses = prepare_data.calc_population(
+            moscow_population, apartment_houses
+        )
+
         self.apartment_houses = apartment_houses
 
 
@@ -226,6 +330,7 @@ class FillDatabase():
         """
         self.read_prepare_dmr()
         self.read_prepare_gis()
+        self.read_moscow_population()
         self.prepare_apartment_houses()
         self.read_prepare_infrastructure()
         self.prepare_all_objects()
@@ -239,11 +344,13 @@ class FillDatabase():
         apartment_houses = self.get_apartment_houses()
         infrastructure_objects = self.get_infrastructure_objects()
         all_objects = self.get_all_objects()
+        moscow_population = self.get_moscow_population()
 
         self.__database.load_to_bd(prepared_dmr, RAW_DMR_NAME)
         self.__database.load_to_bd(prepared_gis, RAW_GIS_NAME)
         self.__database.load_to_bd(apartment_houses, APARTMENT_HOUSES_NAME)
         self.__database.load_to_bd(all_objects, ALL_OBJECTS_NAME)
+        self.__database.load_to_bd(moscow_population, MOSCOW_POPULATION_NAME)
         for obj_type, obj_data in infrastructure_objects.items():
             self.__database.load_to_bd(obj_data, INFRA_TABLES_NAMES_BY_OBJECTS[obj_type])
 
@@ -298,7 +405,19 @@ class FillDatabase():
             raise ValueError('all_objects is absend, run prepare_all_objects')
         return self.all_objects
 
+
+    def get_moscow_population(self) -> pd.DataFrame:
+        """getter
+        """
+        if self.moscow_population.shape[0] == 0:
+            raise ValueError('moscow_population is absend, run read_moscow_population')
+        return self.moscow_population
+
+
 if __name__ == '__main__':
     CONFIG_PATH = os.path.join(PATH_TO_ROOT, 'db_config.json')
     fill_db = FillDatabase(CONFIG_PATH)
     fill_db.read_prepare_load_all()
+
+    mcm = MakeCenterMass(CONFIG_PATH)
+    mcm.make_center_mass_load_to_db()

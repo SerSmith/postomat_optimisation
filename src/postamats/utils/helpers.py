@@ -1,11 +1,12 @@
 """Вспомогательные функции
 """
-from typing import Tuple, List
+from typing import Dict, Tuple, List
 import hashlib
 from warnings import warn
 from math import radians, cos, sin, asin, sqrt
 from shapely.geometry import Polygon
 import numpy as np
+import pandas as pd
 
 # Радиус Земли на широте Москвы
 EARTH_R = 6363568
@@ -94,6 +95,59 @@ def calc_polygon_centroid(coords: List[List[float]]) -> List[float]:
 
     plgn = Polygon(coords)
     return list( list(plgn.centroid.coords)[0] )
+
+
+def find_degreee_to_distance(df: pd.DataFrame) -> Tuple[float, float]:
+    "Функция, которая возвращает чему равен 1 градус по широте и долготе в градусах"
+    lat_min = df.lat.min()
+    lat_max = df.lat.max()
+    lon_min = df.lon.min()
+    lon_max = df.lon.max()
+    lat_length= haversine(lat_min, lon_min, lat_max, lon_min)
+    lon_length= haversine(lat_min, lon_min, lat_min, lon_max)
+    lat_km = lat_length/1000/(lat_max-lat_min)
+    lon_km = lon_length/1000/(lon_max-lon_min)
+    print(f'latitude 1 degree = {lat_km} km', f'longitude 1 degree = {lon_km} km') 
+
+    return lat_km, lon_km
+
+
+def make_net_with_center_mass(df_homes: pd.DataFrame,
+                              step: float,
+                              distance_to_degree: Dict) -> pd.DataFrame:
+    """
+    Функция, которая накладывает объекты (дома) на сетку и в каждой ячейке считает центр масс
+    В df_homes обязаны быть поля population, lat, lon
+
+    """
+    df = df_homes.copy()
+    df.columns = [column.lower() for column in df.columns]
+
+    step_lon = step * distance_to_degree['lon']
+    step_lat = step * distance_to_degree['lat']
+
+    df['lat_n'] = df.lat // step_lat
+    df['lon_n'] = df.lon // step_lon
+    df['lat_n'] = df['lat_n'].astype('int')
+    df['lon_n'] = df['lon_n'].astype('int')
+    df['lat_n_lon_n'] = df['lat_n'].astype('str') + '_' + df['lon_n'].astype('str')
+    df['step'] = step
+
+    df['id_center_mass'] = df['lat_n_lon_n'] + '_' + df['step'].astype(str)
+
+    df['lat_population'] = df['lat']*df['population']
+    df['lon_population'] = df['lon']*df['population']
+    df_agg = df.groupby(['id_center_mass'])\
+        .agg({'population':'sum','lat_population':'sum','lon_population':'sum'})\
+            .reset_index().rename({'population':'sum_population'}, axis=1)
+
+    df_agg['lat'] = df_agg['lat_population']/df_agg['sum_population']
+    df_agg['lon'] = df_agg['lon_population']/df_agg['sum_population']
+    df_agg['population'] = df_agg['sum_population']
+    df_agg = df_agg[['id_center_mass','lat','lon','population']]
+    df_agg['step'] = step
+
+    return df_agg
 
 
 def get_text_hash(text: str) -> str:

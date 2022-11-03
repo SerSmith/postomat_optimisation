@@ -264,7 +264,7 @@ def prepare_gis_houses_data(data_path: str) -> pd.DataFrame:
     ogrn_col = 'ОГРН организации, осуществляющей управление домом'
     kpp_col = 'КПП организации, осуществляющей управление домом'
 
-    print('prepare_dmr_houses_data started ... ')
+    print('prepare_gis_houses_data started ... ')
     print(f'loading {data_path} ... ')
     houses_data_files = get_filenames_from_dir(data_path,
                                                mandatory_substr='csv')
@@ -303,7 +303,7 @@ def prepare_gis_houses_data(data_path: str) -> pd.DataFrame:
 
     print('create_object_id started')
     prepared_data[OBJECT_ID_GIS_COL] = create_object_id(prepared_data)
-    print('prepare_dmr_houses_data finished')
+    print('prepare_gis_houses_data finished')
 
     return prepared_data.drop_duplicates(subset=OBJECT_ID_GIS_COL).reset_index(drop=True)
 
@@ -534,3 +534,67 @@ def prepare_infrastructure_objects(data: pd.DataFrame,
     data[OBJECT_ID_COL] = create_object_id(data)
     print('prepare_infrastructure_objects finished')
     return data.drop_duplicates(subset=OBJECT_ID_COL).reset_index(drop=True)
+
+
+def calc_population(moscow_population: pd.DataFrame,
+                    apartment_houses: pd.DataFrame) -> pd.DataFrame:
+    """Считает население дома по плотности населения муниципального округа
+     и площади помещений
+
+    Args:
+        moscow_population (pd.DataFrame): _description_
+        all_apartment_houses (pd.DataFrame): _description_
+
+    Returns:
+        pd.DataFrame: _description_
+    """
+    moscow_population = moscow_population.copy()
+    apartment_houses = apartment_houses.copy()
+
+    # мэпим датафреймы по муниципальному округу
+    # предварительно очищая названия
+    moscow_population['district_cleaned'] = \
+        moscow_population['district'].str.replace(
+            ' (МО)', '', regex=False
+            ).str.strip().str.upper()
+
+    district_population = moscow_population.set_index('district_cleaned')['population']
+
+    apartment_houses['district_cleaned'] = \
+        apartment_houses['district'].str.replace(
+            'муниципальный округ ', ''
+            ).str.strip().str.upper()
+
+    district_houses_area_sum = \
+        apartment_houses.groupby('district_cleaned')['total_area_gis'].sum()
+    district_population_density = (district_population / district_houses_area_sum).dropna()
+
+    ah_population_density = apartment_houses['district_cleaned']\
+            .map(district_population_density)
+
+    if ah_population_density.isna().sum() != 0:
+        raise ValueError('При мэппинге населения по названию округа возникли пропуски в данных')
+
+    apartment_houses['population'] = \
+        apartment_houses['total_area_gis'] * ah_population_density
+
+    no_total_but_living = (
+        (apartment_houses['total_area_gis']==0)
+        |
+        apartment_houses['total_area_gis'].isna()
+        ) & (apartment_houses['living_area_gis'] > 0)
+
+    apartment_houses.loc[no_total_but_living, 'total_area_gis'] = \
+        apartment_houses.loc[no_total_but_living, 'living_area_gis']
+
+    # проверяем, что население, рассчитанное двумя методами совпадает до десятков
+    population1 = int(
+        district_population[district_houses_area_sum.index].sum() // 10
+        )
+    population2 = int(apartment_houses['population'].sum() // 10)
+    if population1 != population2:
+        raise ValueError('Население рассчиталось неправильно, проверьте входные'
+                        ' данные/алгоритм calc_population:'
+                        f'{population1} != {population2}')
+
+    return apartment_houses.drop(columns='district_cleaned')

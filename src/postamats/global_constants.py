@@ -18,6 +18,12 @@ CLUBS_NAME = 'clubs_all_data'
 SPORTS_NAME = 'sports_all_data'
 # табличка всех объектов, подходящих для размещения постаматов
 ALL_OBJECTS_NAME = 'all_objects_data'
+# табличка с данными о населении Москвы по муниципальным округам
+MOSCOW_POPULATION_NAME = 'moscow_population'
+# табличка, где лежат центры масс по населению для ячеек секи
+CENTER_MASS_NAME = 'centers_mass'
+# список размеров величины шага в км в сетке, которую мы накладываем на дома
+LIST_STEP = [0.1, 0.5, 1, 2]
 
 NAN_VALUES = ['', '-', '*']
 
@@ -27,7 +33,6 @@ OBJECT_TYPE_COL = 'object_type'
 ADDRESS_COL = 'address'
 DISTRICT_COL = 'district'
 ADM_AREA_COL = 'adm_area'
-
 
 # для сырой таблички с данными ГИС ОЖФ свой айдишник
 OBJECT_ID_GIS_COL = 'object_id_gis'
