@@ -4,12 +4,11 @@
 
 import os
 import re
-from warnings import warn
-from typing import Optional, List
+from time import sleep
+from typing import Optional, List, Dict
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
-from time import sleep
 
 import geopandas as gpd
 from shapely.geometry import Polygon
@@ -17,23 +16,14 @@ from shapely.geometry import Polygon
 from postamats.utils import helpers
 from postamats.global_constants import NAN_VALUES, OBJECT_ID_COL, DMR_COLS_MAP,\
     DMR_GEODATA_COL, DMR_KAD_NUM_COLS, LATITUDE_COL, LONGITUDE_COL, ADM_AREA_TO_EXCLUDE,\
-        GIS_COLS_MAP, OBJECT_ID_GIS_COL, OBJECT_TYPE_COL
+        GIS_COLS_MAP, OBJECT_ID_GIS_COL, OBJECT_TYPE_COL, INFRA_COLS_MAP, COMBINED_ADDRESS_KEYS,\
+            INFRA_WORKING_HOURS_COL, INFRA_COMBINED_ADDRESS_COL
 
 tqdm.pandas()
 
 # куда складывать промежуточные данные при подготовке табличек
 # содержимое папки добавлено в гитигнор, данные будут там появлять локально пи выполнении скриптов
 PREPARED_DATA_PATH = 'Notebooks/prepare_data/data'
-
-# названия промежуточных табличек с обработанными данными из
-# https://data.mos.ru/opendata/60562/data/table?versionNumber=3&releaseNumber=823
-# https://dom.gosuslugi.ru/#!/houses
-# которые используются для подготовки финальных табличек для заливки в базу
-RAW_GIS_NAME = 'raw_gis_houses_data'
-RAW_DMR_NAME = 'raw_dmr_houses_data'
-# название таблички с данными жилых домов
-# построенной на базе RAW_GIS_NAME и RAW_DMR_NAME
-APARTMENT_HOUSES_NAME = 'apartment_houses_all_data'
 
 
 def codes_to_str(codes_series: pd.Series) -> pd.Series:
@@ -278,6 +268,9 @@ def prepare_gis_houses_data(data_path: str) -> pd.DataFrame:
     print(f'loading {data_path} ... ')
     houses_data_files = get_filenames_from_dir(data_path,
                                                mandatory_substr='csv')
+    if len(houses_data_files) == 0:
+        raise FileNotFoundError(f'В папке {data_path} нет csv фалов')
+
     houses_data_list = []
     print('files from path:', houses_data_files)
     for hdf in houses_data_files:
@@ -317,7 +310,8 @@ def prepare_gis_houses_data(data_path: str) -> pd.DataFrame:
 
 def prepare_apartment_houses_data(prepared_dmr: pd.DataFrame,
                                   prepared_gis: pd.DataFrame) -> pd.DataFrame:
-    """_summary_
+    """Финальная сборка и заливка таблички с данными о многоквартирных домах,
+     зданиях и сооружениях
 
     Args:
         prepared_dmr (pd.DataFrame): подготовленные данные
@@ -368,3 +362,175 @@ def prepare_apartment_houses_data(prepared_dmr: pd.DataFrame,
     data_merged[OBJECT_TYPE_COL] = 'многоквартирный дом'
     print('prepare_apartment_houses_data finished')
     return data_merged.reset_index(drop=True)
+
+
+def __extract_data_from_address(addr_list: List[Dict[str, str]],
+                           addr_key: str) -> str:
+    """Извлекает данные по ключу из колонки ObjectAddress. В ней лежат листы словарей
+    Их ключи - адреса, районы размещения и проч.
+
+    Args:
+        addr_list (List[Dict[str, str]]): сырые данные из ячейки колонки ObjectAddress
+        addr_key (str): ключ, данные по которому надо выдернуть
+
+    Returns:
+        str
+    """
+    if not isinstance(addr_list, list):
+        return np.nan
+    if not addr_list:
+        return np.nan
+    if addr_key not in addr_list[0]:
+        return np.nan
+    return addr_list[0][addr_key]
+
+
+def explode_combined_address(data: pd.DataFrame,
+                             combined_address_col: str=INFRA_COMBINED_ADDRESS_COL,
+                             combined_address_keys: Optional[List[str]]=None,
+                             ) -> pd.DataFrame:
+    """Извлекает данные из колонки ObjectAddress (в ней лежат листы словарей;
+     их ключи - адреса, районы размещения и проч.) и раскладывает по колонкам
+
+    Args:
+        data (pd.DataFrame): данные об объектах инфраструктуры с data.mos.ru,
+         загруженные из json
+        object_address_col (str): название колонки ObjectAddress
+        object_addr_keys (List[str]): ключи, по которым надо забрать даные
+         из ObjectAddress
+
+    Returns:
+        pd.DataFrame: _description_
+    """
+    data = data.copy()
+
+    if combined_address_keys is None:
+        combined_address_keys = COMBINED_ADDRESS_KEYS
+
+    for key in combined_address_keys:
+        data[key] = data[combined_address_col].apply(__extract_data_from_address, args=(key,))
+
+    return data.drop(columns=combined_address_col)
+
+
+def extract_working_hours(hours_list: List[Dict[str, str]]) -> str:
+    """Парси запись с данными о времени работы
+     запись - это лист словарей
+
+    Args:
+        hours_list (List[Dict[str, str]]): _description_
+
+    Returns:
+        str: _description_
+    """
+    if not isinstance(hours_list, list):
+        return np.nan
+    if not hours_list:
+        return np.nan
+    return '; '.join([' '.join(el.values()) for el in hours_list])
+
+
+def prepare_infrastructure_objects(data: pd.DataFrame,
+                                   geodata_col: str,
+                                   object_type: str,
+                                   working_hours_col: str=INFRA_WORKING_HOURS_COL,
+                                   combined_address_col: str=INFRA_COMBINED_ADDRESS_COL,
+                                   combined_address_keys: Optional[List[str]]=None,
+                                   cols_map: Optional[Dict[str, str]]=None,
+                                   needed_cols: Optional[List[str]]=None):
+    """Обрабатывает датафрейм с сырыми данными об объектах инфраструктуры из списка:
+    - Нестационарные торговые объекты по реализации печатной продукции:
+     https://data.mos.ru/opendata/2781
+    - Нестационарные торговые объекты: https://data.mos.ru/opendata/619
+    - Многофункциональные центры предоставления государственных и муниципальных услуг
+     https://data.mos.ru/opendata/-mnogofunktsionalnye-tsentry-predostavleniya-gosudarstvennyh-uslug
+    - Библиотеки города: https://data.mos.ru/opendata/7702155262-biblioteki
+    - Дома культуры и клубы: https://data.mos.ru/opendata/7702155262-doma-kultury-i-kluby
+    - Спортивные объекты города Москвы:
+     https://data.mos.ru/opendata/7708308010-sportivnye-obekty-goroda-moskvy
+
+    Args:
+        data (pd.DataFrame): датафрейм с сырыми данными
+
+        geodata_col (str): Колонка с геоданными.
+
+        object_type (str): тип объекта (киоск, МФЦ и т.д.)
+
+        working_hours_col (str, optional): в некоторых справочниках есть колонка с часами работы
+         В ней данные лежат в листах словарей. Если указать её название, данные распарсятся.
+         Defaults to 'WorkingHours'.
+
+        combined_address_col (ObjectAddress): в некоторых справочниках данные колонки с адресом
+         содержат листы словарей, где собран адрес, район и округ; если в данных это так,
+         нужно указать название колонки, чтобы она разобралась на 3
+
+        cols_map (Optional[Dict[str, str]], optional): Мэппинг колонок. Defaults to None.
+         Те колонки из сырых данных, которые встретятся в мэппинге, будут согласно ему переименованы
+
+        needed_cols (Optional[List[str]], optional): какие колонки брать из сырых данных
+         для загрузки в БД. Defaults to None.
+
+    Raises:
+        TypeError: _description_
+        TypeError: _description_
+        TypeError: _description_
+        ValueError: _description_
+    """
+    print('prepare_infrastructure_objects started ... ')
+    if cols_map is None:
+        cols_map = INFRA_COLS_MAP
+
+    if combined_address_keys is None:
+        combined_address_keys = COMBINED_ADDRESS_KEYS
+
+    if needed_cols is None:
+        needed_cols = data.columns.to_list()
+
+    if not isinstance(data, pd.DataFrame):
+        raise TypeError(f'data must be pd.DataFrame, {type(data)} found')
+    if not isinstance(cols_map, dict):
+        raise TypeError(f'cols_map must be dict, {type(cols_map)} found')
+    if not isinstance(needed_cols, list):
+        raise TypeError(f'needed_cols must be list, {type(needed_cols)} found')
+
+    data = data[needed_cols].copy()
+
+    if geodata_col not in data.columns:
+        raise ValueError(f'Колонка {geodata_col} отсутствует в данных')
+
+    data = prepare_geodata_add_lat_lon(data, geodata_col=geodata_col)
+
+    if working_hours_col in data.columns:
+        data[working_hours_col] = data[working_hours_col].apply(extract_working_hours)
+
+    if combined_address_col in data.columns:
+        data = explode_combined_address(data,
+                                        combined_address_col=combined_address_col,
+                                        combined_address_keys=combined_address_keys)
+
+    if ('ObjectType' in data.columns) and ('Category' not in data.columns):
+        data['Category'] = data['ObjectType'].copy()
+        data = data.drop(columns='ObjectType')
+
+    if 'Category' not in data.columns:
+        data['Category'] = object_type
+
+    if 'Specialization' in data.columns:
+        data['Specialization'] = data['Specialization'].str.replace('[', '', regex=False)
+        data['Specialization'] = data['Specialization'].str.replace(']', '', regex=False)
+
+    old_cols = data.columns
+    if any(old_cols.duplicated()):
+        raise ValueError(f'В колонках {old_cols} есть дубли, проверьте входные данные')
+
+    data.columns = [cols_map[col] if col in cols_map else col.lower()
+                    for col in data.columns]
+
+    if any(data.columns.duplicated()):
+        raise ValueError(f'После мэппинга колонки {old_cols} задублились: {data.columns}'
+                         f', проверьте {cols_map}, {needed_cols}')
+
+    data[OBJECT_TYPE_COL] = object_type
+    data[OBJECT_ID_COL] = create_object_id(data)
+    print('prepare_infrastructure_objects finished')
+    return data.drop_duplicates(subset=OBJECT_ID_COL).reset_index(drop=True)

@@ -1,12 +1,34 @@
 """Константы для функций проекта
 """
 
+# названия промежуточных табличек с обработанными данными из
+# https://data.mos.ru/opendata/60562/data/table?versionNumber=3&releaseNumber=823
+# https://dom.gosuslugi.ru/#!/houses
+# которые используются для подготовки финальных табличек для заливки в базу
+RAW_GIS_NAME = 'raw_gis_houses_data'
+RAW_DMR_NAME = 'raw_dmr_houses_data'
+# название таблички с данными жилых домов
+# построенной на базе RAW_GIS_NAME и RAW_DMR_NAME
+APARTMENT_HOUSES_NAME = 'apartment_houses_all_data'
+# таблички инфраструктурных объектов
+KIOSKS_NAME = 'kiosks_all_data'
+MFC_NAME = 'mfc_all_data'
+LIBS_NAME = 'libs_all_data'
+CLUBS_NAME = 'clubs_all_data'
+SPORTS_NAME = 'sports_all_data'
+# табличка всех объектов, подходящих для размещения постаматов
+ALL_OBJECTS_NAME = 'all_objects_data'
+
 NAN_VALUES = ['', '-', '*']
 
-# как во всех наших табличках называется колонка с идентификационным номером объекта
-# и типом объекта
+# как во всех наших будут называться колонки
 OBJECT_ID_COL = 'object_id'
 OBJECT_TYPE_COL = 'object_type'
+ADDRESS_COL = 'address'
+DISTRICT_COL = 'district'
+ADM_AREA_COL = 'adm_area'
+
+
 # для сырой таблички с данными ГИС ОЖФ свой айдишник
 OBJECT_ID_GIS_COL = 'object_id_gis'
 
@@ -19,6 +41,8 @@ LONGITUDE_COL = 'lon'
 DMR_GEODATA_COL = 'GEODATA'
 # как будет называться колонка с геоданными в базе данных
 DB_GEODATA_COL = 'geodata'
+# название колонки с геоданными в сырых данных инфраструктурных объектов
+INFRA_GEODATA_COL = 'geoData'
 
 # название колонок с кадастровыми номерами в таблице
 # Адресного реестра объектов недвижимости города Москвы data.mos.ru
@@ -32,9 +56,9 @@ DMR_COLS_MAP = {
     # «объект незавершенного строительства», «земельный участок»,
     # «помещение», «комната», «объект адресации – помещение»,
     # «объект права», «объект адресации – комната».
-    'OBJ_TYPE': OBJECT_TYPE_COL,
+    'OBJ_TYPE': 'category',
     'ONTERRITORYOFMOSCOW': 'on_moscow_territory',
-    'ADDRESS': 'address',
+    'ADDRESS': ADDRESS_COL,
     'SIMPLE_ADDRESS': 'simple_address',
     # Наименование элемента планировочной структуры или улично-дорожной сети
     'P7': 'street',
@@ -48,9 +72,9 @@ DMR_COLS_MAP = {
     # Номер строения или сооружения
     'L3_VALUE': 'stroenie_num',
     # Административный округ
-    'ADM_AREA': 'adm_area',
+    'ADM_AREA': ADM_AREA_COL,
     # Муниципальный округ, поселение
-    'DISTRICT': 'district',
+    'DISTRICT': DISTRICT_COL,
     # Уникальный номер адреса в Адресном реестре
     'NREG': 'num_addr_register',
     # Дата регистрации адреса в Адресном реестре
@@ -106,3 +130,75 @@ GIS_COLS_MAP = {
     'Кадастровый номер': 'kad_n_gis',
     'Глобальный уникальный идентификатор дома': 'guid_house_gis'
     }
+
+# мэппинг названий колонок в сырых данных инфраструктурных объектов
+INFRA_COLS_MAP = {
+    'AdmArea': ADM_AREA_COL,
+    'District': DISTRICT_COL,
+    'ObjectType': OBJECT_TYPE_COL,
+    'Address': ADDRESS_COL,
+    'Name': 'commonname',
+    INFRA_GEODATA_COL: DB_GEODATA_COL,
+    OBJECT_ID_COL: OBJECT_ID_COL
+}
+
+# колонки с данными, которые содержат листы словарей
+# в сырых данных инфраструктурных объектов
+INFRA_WORKING_HOURS_COL = 'WorkingHours'
+INFRA_COMBINED_ADDRESS_COL = 'ObjectAddress'
+
+# Ключи, по которым из INFRA_COMBINED_ADDRESS_COL надо извлекать данные
+# при обработке сырых данных с data.mos.ru о кисосках, МФЦ и других
+# инфраструктурных объектах
+COMBINED_ADDRESS_KEYS = ['AdmArea', 'District', 'Address']
+
+# то что имеет смысл забирать из сырых данных с data.mos.ru по объектам инфраструктуры
+KIOSKS_COLS = [
+    'ObjectType', 'Name', 'AdmArea', 'District',
+    'Address', 'FacilityArea', 'Specialization',
+    'PeriodOfPlacement', 'StartDateTrading', 'EndDateTrading',
+    INFRA_GEODATA_COL
+    ]
+KIOSKS_OT = 'киоск'
+
+MFC_COLS = [
+    'CommonName', 'AdmArea', 'District', 'Address',
+    'WorkingHours','ExtraServices', 'CenterArea', 'WindowCount',
+    INFRA_GEODATA_COL
+    ]
+MFC_OT = 'МФЦ'
+
+LIBS_COLS = [
+    'Category', 'CommonName', 'ObjectAddress', 'WorkingHours',
+    'NumOfSeats', 'NumOfReaders', 'NumOfVisitors',
+    INFRA_GEODATA_COL
+    ]
+LIBS_OT = 'библиотека'
+
+CLUBS_COLS = ['Category', 'CommonName', 'ObjectAddress', 'WorkingHours', INFRA_GEODATA_COL]
+CLUBS_OT = 'дом культуры или клуб'
+
+SPORTS_COLS = ['Category', 'CommonName', 'ObjectAddress', 'WorkingHours', INFRA_GEODATA_COL]
+SPORTS_OT = 'cпортивный объект'
+
+INFRA_NEEDED_COLS_BY_OBJECTS = {
+    KIOSKS_OT: KIOSKS_COLS,
+    MFC_OT: MFC_COLS,
+    LIBS_OT: LIBS_COLS,
+    CLUBS_OT: CLUBS_COLS,
+    SPORTS_OT: SPORTS_COLS
+}
+
+# названия таблиц для инфраструктурных объектов
+INFRA_TABLES_NAMES_BY_OBJECTS = {
+    KIOSKS_OT: KIOSKS_NAME,
+    MFC_OT: MFC_NAME,
+    LIBS_OT: LIBS_NAME,
+    CLUBS_OT: CLUBS_NAME,
+    SPORTS_OT: SPORTS_NAME
+}
+
+# обязательные колонки, которые должны быть в табличке по всем объектам
+# потенциального размещения постаматов
+MANDATORY_COLS = [OBJECT_ID_COL, ADM_AREA_COL, DISTRICT_COL, OBJECT_TYPE_COL,
+                  LATITUDE_COL, LONGITUDE_COL, ADDRESS_COL]

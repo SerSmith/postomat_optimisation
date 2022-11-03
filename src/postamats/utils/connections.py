@@ -1,6 +1,8 @@
 
 """Функции для работы с базой данных
 """
+import os
+from pathlib import Path
 import json
 from typing import Union
 from warnings import warn
@@ -8,7 +10,8 @@ from sqlalchemy import create_engine
 import psycopg2
 import pandas as pd
 import geopandas as gpd
-from postamats.global_constants import DB_GEODATA_COL
+
+PATH_TO_ROOT = Path(__file__).parent.parent.parent.parent
 
 
 class DB:
@@ -43,31 +46,14 @@ class DB:
         return connection
 
 
-
-    def __create_extension_postgis(self):
-        """Создаем EXTENSION postgis
-         чтобы заливать геоданные
-        """
-        conn1 = self.__create_connection()
-        conn1.autocommit = True
-        cursor = conn1.cursor()
-        cursor.execute("CREATE EXTENSION postgis;")
-        conn1.commit()
-        cursor.close()
-        conn1.close()
-        self.postgis_created = True
-
-
     def load_to_bd(self,
                    df: Union[pd.DataFrame, gpd.GeoDataFrame],
-                   table_name: str,
-                   geo: bool=False) -> None:
+                   table_name: str) -> None:
         """Загружаем датафрейм в базу
 
         Args:
             df (pd.DataFrame): датафрейм для загрузки
             table_name (str): куда сохраняем
-            geo (bool): если хотим залить геоданные из геопандас
         """
 
         engine = create_engine(self.connection_for_engine)
@@ -82,45 +68,30 @@ class DB:
             df.columns = [col.lower() for col in df.columns]
             warn(f'Новые названия колонок: {df.columns}')
 
-        if geo:
-            if not self.postgis_created:
-                self.__create_extension_postgis()
-                print('EXTENSION postgis created')
-            df.to_postgis(table_name, con=engine, index=False, if_exists ='replace')
-        else:
-            df.to_sql(table_name, con=engine, index=False, if_exists ='replace')
+        df.to_sql(table_name, con=engine, index=False, if_exists='replace')
 
         engine.dispose()
 
 
     def get_table_from_bd(self,
-                          table_name: str,
-                          geo: bool=False,
-                          geom_col: str=DB_GEODATA_COL) -> pd.DataFrame:
+                          table_name: str) -> pd.DataFrame:
         """Выкачай всю таблицу
 
         Args:
             table_name (str): название табдицы
-            geo (bool): если хотим получить геопандас
-            geom_col (str): название колонки с геоданными
 
         Returns:
             pd.DataFrame: результат
         """
         query = f'select * from {table_name}'
         connection = self.__create_connection()
-        if geo:
-            df = gpd.read_postgis(query, connection, geom_col=geom_col)
-        else:
-            df = pd.read_sql_query(query, connection)
+        df = pd.read_sql_query(query, connection)
         connection.close()
         return df
 
 
     def get_by_sql(self,
-                   query: str,
-                   geo: bool=False,
-                   geom_col: str=DB_GEODATA_COL) -> pd.DataFrame:
+                   query: str) -> pd.DataFrame:
         """Кастомный запрос
 
         Args:
@@ -132,12 +103,27 @@ class DB:
             pd.DataFrame: результат
         """        
         connection = self.__create_connection()
-        if geo:
-            df = gpd.read_postgis(query, connection, geom_col=geom_col)
-        else:
-            df = pd.read_sql_query(query, connection)
+        df = pd.read_sql_query(query, connection)
         connection.close()
         return df
+
+
+    def execute_query(self, query: str) -> None:
+        """Выполнить запрос на стороне базы данных
+
+        Args:
+            query (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
+        conn1 = self.__create_connection()
+        conn1.autocommit = True
+        cursor = conn1.cursor()
+        cursor.execute(query)
+        conn1.commit()
+        cursor.close()
+        conn1.close()
 
 
     @staticmethod
@@ -150,26 +136,21 @@ class DB:
 
     def get_by_filter(self,
                       table_name: str,
-                      filter_dict,
-                      geo: bool=False,
-                      geom_col: str=DB_GEODATA_COL) -> pd.DataFrame:
+                      filter_dict) -> pd.DataFrame:
 
         connection = self.__create_connection()
         where_str = "AND ".join([self.__make_filter(k, filter_dict[k]) for k in filter_dict])
         query = f"select * from {table_name} WHERE {where_str}"
-        if geo:
-            df = gpd.read_postgis(query, connection, geom_col=geom_col)
-        else:
-            df = pd.read_sql_query(query, connection)
+        df = pd.read_sql_query(query, connection)
         connection.close()
         return df
 
 
 
 if __name__ == "__main__":
-    CONFIG_PATH = "/Users/sykuznetsov/Desktop/db_config.json"
+    CONFIG_PATH = os.path.join(PATH_TO_ROOT, 'db_config.json')
 
-    with open(CONFIG_PATH) as f:
+    with open(CONFIG_PATH, mode='r', encoding='utf-8') as f:
         db_config = json.load(f)
 
     db = DB(db_config)
@@ -178,14 +159,10 @@ if __name__ == "__main__":
     db.load_to_bd(tmp, 'tmp')
 
     loaded1 = db.get_table_from_bd('tmp')
-
     print(loaded1)
 
     loaded2 = db.get_by_sql('SELECT * FROM tmp')
-
     print(loaded2)
 
     loaded3 = db.get_by_filter("tmp", {"col1": [1, 3]})
     print(loaded3)
-
-    
