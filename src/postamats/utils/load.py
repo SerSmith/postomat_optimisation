@@ -3,14 +3,20 @@
 import os
 from typing import Dict, List, Optional
 import json
+import time
+import psycopg2
 import pandas as pd
+import numpy as np
+from tqdm import tqdm
 from postamats.utils import prepare_data, connections, helpers
-from postamats.utils.connections import PATH_TO_ROOT
+from postamats.utils.connections import DB, PATH_TO_ROOT
 from postamats.global_constants import MANDATORY_COLS, OBJECT_ID_COL, OBJECT_TYPE_COL,\
     RAW_DMR_NAME, RAW_GIS_NAME, APARTMENT_HOUSES_NAME, ALL_OBJECTS_NAME, CENTER_MASS_NAME,\
         KIOSKS_OT, MFC_OT, LIBS_OT, CLUBS_OT, SPORTS_OT,\
             INFRA_TABLES_NAMES_BY_OBJECTS, INFRA_GEODATA_COL, INFRA_NEEDED_COLS_BY_OBJECTS,\
-                LIST_STEP, MOSCOW_POPULATION_NAME
+                LIST_STEP, MOSCOW_POPULATION_NAME, LATITUDE_COL, LONGITUDE_COL
+tqdm.pandas()
+
 
 def get_full_path_from_relative(relative_path: str) -> str:
     """Превращает относительный путь в абсолютный
@@ -42,6 +48,120 @@ def get_query_from_file(sql_name: str) -> str:
     return content
 
 
+def calc_distances_matrix_database(config_path: str) -> None:
+    """!Внимание, функция инициирует перасчет таблицы distances_matrix в БД. Продолжаем?!
+    Создает и заполняет матрицу расстояний
+     в БД, расчеты также происходят на стороне БД
+
+    Args:
+        config_path (str): путь к json с реквизитами базы данных
+    """
+    var = input('Внимание, функция инициирует перасчет таблицы distances_matrix в БД.'
+                ' Продолжаем? (Y/n) ')
+    if var != 'Y':
+        print('aborted')
+        return
+    var = input('Данные в distances_matrix будут перерассчитаны,'
+                ' расчет ведется на стороне БД. Вы уверены? (Y/n) ')
+    if var != 'Y':
+        print('aborted')
+        return
+
+    with open(config_path, mode='r', encoding='utf-8') as db_file:
+        db_config = json.load(db_file)
+
+    database = DB(db_config)
+    # скрипт для создания функции расчета расстояний
+    func_ddl = get_query_from_file('calculate_distance_ddl.sql')
+    # скрипт для создания таблицы расстояний
+    dist_ddl = get_query_from_file('distances_matrix_ddl.sql')
+    # скрипт для заполнения таблицы расстояний
+    dist_etl = get_query_from_file('distances_matrix.sql')
+    database.execute_query(func_ddl)
+    # мы не пересоздаем таблицу, если она уже готова
+    try:
+        database.execute_query(dist_ddl)
+    except psycopg2.errors.DuplicateTable as error:# pylint: disable=no-member
+        print ("Oops! An exception has occured:", error)
+        print ("Exception TYPE:", type(error))
+    database.execute_query(dist_etl)
+    print('Команды для перерасчета отправлены в БД')
+
+
+def calc_distances_matrix_locally(config_path: str,
+                                 save_pickle: bool=False,
+                                 include_houses: bool=False,
+                                 concat_slices: bool=True,
+                                 max_slice_size: int=10**7) -> pd.DataFrame:
+    """Создает и заполняет матрицу расстояний локально
+     расчеты происходят локально на таблицах, выгружаемых из БД
+
+    Args:
+        config_path (str): путь к json с реквизитами базы данных
+        save_pickle (bool, optional): Сохранять данные в data/temporary/distances_matrix.pickle
+         сразу после расчета. Defaults to False.
+        include_houses (bool, optional): включаем ли мы многоквартирные дома в расчеты.
+         Defaults to False.
+        concat_slices: (bool, optional): объединяем ли результат в единый датафрейм (True)
+         или возвращаем списком срезов (False). Defaults to True.
+        max_slice_size (int, optional): максимальный размер среза картезианова датафрейма (строк),
+         оптимально пролезающий в память. Defaults to 10**7.
+    """
+    with open(config_path, mode='r', encoding='utf-8') as db_file:
+        db_config = json.load(db_file)
+
+    database = DB(db_config)
+    print(f'Загружаем из БД {ALL_OBJECTS_NAME}')
+    data = database.get_table_from_bd(ALL_OBJECTS_NAME)
+    print(f'Загружаем из БД {CENTER_MASS_NAME}')
+    mass = database.get_table_from_bd(CENTER_MASS_NAME)
+
+    if not include_houses:
+        print('include_houses = False, многоквартирные дома будут исключены из расчета рассточний.')
+        data = data[data['object_type'] != 'многоквартирный дом']
+
+    data_coords = data[[OBJECT_ID_COL, LATITUDE_COL, LONGITUDE_COL]]
+    mass_coords = mass[['id_center_mass', 'lat', 'lon']]
+
+    size1, size2 = data_coords.shape[0], mass_coords.shape[0]
+    cross_size = size1 * size2
+    n_splits = int( np.ceil(cross_size / max_slice_size) )
+    max_slice_size = int( np.ceil(size1 / n_splits) )
+
+    slices_gen = helpers.df_generator(data_coords, max_slice_size)
+    slices_list = []
+    print(f'Размер картезианова датафрейма: {size1} x {size2} = {cross_size}.\n'
+          f'Датафрейм будет разбит на {n_splits} частей')
+    print('Получаем картезиановы датафреймы для каждой части:')
+    time.sleep(.5)
+    for df_slice in tqdm(slices_gen, total=n_splits):
+        slices_list.append(df_slice.merge(mass_coords, how='cross'))
+    print('Считаем расстояния:')
+    time.sleep(.5)
+    for i, df_slice in tqdm(enumerate(slices_list), total=n_splits):
+        slices_list[i]['distance'] = helpers.haversine_vectorized(
+            df_slice,
+            'lat_x',
+            'lon_x',
+            'lat_y',
+            'lon_y'
+            )
+
+    all_dists = slices_list
+    if concat_slices:
+        print('Объединяем срезы ... ', end='')
+        all_dists = pd.concat(slices_list, ignore_index=True)
+        print('успешно')
+    if save_pickle:
+        filepath = os.path.join(PATH_TO_ROOT, 'data', 'temporary', 'distances_matrix.pickle')
+        print(f'Сохраняем pickle в {filepath} ... ', end='')        
+        all_dists.to_pickle(
+            filepath, protocol=4
+            )
+        print('успешно')
+    return all_dists
+
+
 class MakeCenterMass():
     """Класс для расчета и заливки в БД табличку с координатами
      центра масс сектора территории по населению этой территории
@@ -51,7 +171,7 @@ class MakeCenterMass():
         """_summary_
 
         Args:
-                config_path (str): путь к json с реквизитами базы данных
+            config_path (str): путь к json с реквизитами базы данных
         """
 
         with open(config_path, mode='r', encoding='utf-8') as db_file:
@@ -421,3 +541,5 @@ if __name__ == '__main__':
 
     mcm = MakeCenterMass(CONFIG_PATH)
     mcm.make_center_mass_load_to_db()
+
+    calc_distances_matrix_database(CONFIG_PATH)

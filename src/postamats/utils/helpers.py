@@ -1,9 +1,9 @@
 """Вспомогательные функции
 """
-from typing import Dict, Tuple, List
+from typing import Dict, Tuple, List, Generator
 import hashlib
 from warnings import warn
-from math import radians, cos, sin, asin, sqrt
+from math import radians, cos, sin, asin, sqrt, pi
 from shapely.geometry import Polygon
 import numpy as np
 import pandas as pd
@@ -55,6 +55,48 @@ def haversine(lat1: float, lon1: float,
     dlat = lat2 - lat1
     hav_arg = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
     hav_dist = 2 * asin(sqrt(hav_arg))
+    distance = EARTH_R * hav_dist
+    return distance
+
+
+def haversine_vectorized(
+        data: pd.DataFrame,
+        lat1_col: str,
+        lon1_col: str,
+        lat2_col: str,
+        lon2_col: str
+        ) -> pd.Series:
+    """Считает расстояниие между точками,
+    координаты которых заданы в виде широты и долготы
+    по всему датафрейму
+
+    Args:
+        data (pd.DataFrame): датафрейм с геокоординатами точек
+        latx_col (str): колонка с широтой точки 1
+        lonx_col (str): колонка с долготой точки 1
+        laty_col (str): колонка с широтой точки 2
+        lony_col (str): колонка с долготой точки 2
+
+    Returns:
+        pd.Series: _description_
+    """
+
+    # convert decimal degrees to radians
+    rcoords = {}
+
+    for col in [lat1_col, lon1_col, lat2_col, lon2_col]:
+        rcoords[col] = pi * data[col] / 180
+    # haversine formula
+    # The Haversine (or great circle) distance is the angular distance between
+    #  two points on the surface of a sphere.
+    #  The first coordinate of each point is assumed to be the latitude,
+    #  the second is the longitude, given in radians
+    dlon = rcoords[lon2_col] - rcoords[lon1_col]
+    dlat = rcoords[lat2_col] - rcoords[lat1_col]
+
+    hav_arg = np.sin(dlat/2)**2 + \
+        np.cos(rcoords[lat1_col]) * np.cos(rcoords[lat2_col]) * np.sin(dlon/2)**2
+    hav_dist = 2 * np.arcsin(np.sqrt(hav_arg))
     distance = EARTH_R * hav_dist
     return distance
 
@@ -161,3 +203,22 @@ def get_text_hash(text: str) -> str:
         str: хэш
     """
     return hashlib.sha256(str(text).encode('utf-8')).hexdigest()
+
+
+def df_generator(df: pd.DataFrame, max_size: int) -> Generator:
+    """Создает генератор датафреймов пандас из входного датафрейма
+    каждый датафрейм в генераторе равен или меньше max_size
+
+    Args:
+        df (pd.DataFrame): датафрейм
+        max_size (int): максимально допустимый размер датафрейма на выходе
+
+    Returns:
+        _type_: _description_
+
+    Yields:
+        Generator: _description_
+    """
+    step = int(np.ceil(df.shape[0] / max_size))
+    df_slices = (df.iloc[i * max_size : (i + 1) * max_size, :].copy() for i in range(step))
+    return df_slices
