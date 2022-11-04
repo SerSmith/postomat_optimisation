@@ -1,10 +1,11 @@
 import uvicorn
 from typing import Union
 import os
+from typing import List
 
 from postamats.utils import connections
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -39,7 +40,7 @@ def calculate_workload(center_mass_pd, distance_matrix_pd):
 
     only_nearest_points_min_dist = distance_matrix_pd.loc[distance_matrix_pd.groupby('id_center_mass').walk_time.idxmin()]
 
-    only_nearest_points_min_dist_with_pop = only_nearest_popipints_min_dist.merge(center_mass_pd, on='id_center_mass')
+    only_nearest_points_min_dist_with_pop = only_nearest_points_min_dist.merge(center_mass_pd, on='id_center_mass')
 
     quantity_people_to_postomat = only_nearest_points_min_dist_with_pop.groupby('object_id').agg({'population': 'sum'}).reset_index()
 
@@ -49,7 +50,7 @@ def calculate_workload(center_mass_pd, distance_matrix_pd):
     return quantity_people_to_postomat, distance_till_nearest_postomat
 
 @app.get("/get_point_statistics")
-def find_heat_map(step, object_id_str):
+def find_heat_map(step, object_id_str: List[str] = Query(None)):
 
     db = connections.DB()
     #object_id_str = ["'" + str(s) + "'" for s in all_postamat_places.object_id[:2000]]
