@@ -21,11 +21,6 @@ from postamats.global_constants import NAN_VALUES, OBJECT_ID_COL, DMR_COLS_MAP,\
 
 tqdm.pandas()
 
-# куда складывать промежуточные данные при подготовке табличек
-# содержимое папки добавлено в гитигнор, данные будут там появлять локально пи выполнении скриптов
-PREPARED_DATA_PATH = 'Notebooks/prepare_data/data'
-
-
 def codes_to_str(codes_series: pd.Series) -> pd.Series:
     """Коды при загрузке данных при наличии пропусков загружаются как float
     и в конце кода ставится ".0"
