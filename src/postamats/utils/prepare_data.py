@@ -51,7 +51,8 @@ def get_filenames_from_dir(path: str,
         [str]: список путей к файлам
     """
     files_list = []
-
+    if not os.path.isdir(path):
+        raise FileNotFoundError(f'Папка {path} не существует')
     if include_subdirs:
         for root, _, files in os.walk(path):
             files_list += [os.path.join(root, f) for f in files

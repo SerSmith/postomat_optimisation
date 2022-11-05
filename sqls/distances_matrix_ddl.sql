@@ -2,7 +2,8 @@ CREATE TABLE public.distances_matrix
 (
 	object_id text,
 	id_center_mass text,
-	distance float,
+	distance int,
+	walk_time int,
 	CONSTRAINT object_mass_id PRIMARY KEY(object_id, id_center_mass)
 );
 
@@ -10,3 +11,4 @@ COMMENT ON TABLE public.distances_matrix IS 'Таблица с расстоян�
 COMMENT ON COLUMN public.distances_matrix.object_id IS 'Идентификатор объекта';
 COMMENT ON COLUMN public.distances_matrix.id_center_mass IS 'Идентификатор центра масс';
 COMMENT ON COLUMN public.distances_matrix.distance IS 'Расстояние, м';
+COMMENT ON COLUMN public.distances_matrix.walk_time IS 'Время в пути, сек';

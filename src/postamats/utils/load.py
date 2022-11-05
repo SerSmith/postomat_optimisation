@@ -14,7 +14,7 @@ from postamats.global_constants import MANDATORY_COLS, OBJECT_ID_COL, OBJECT_TYP
     RAW_DMR_NAME, RAW_GIS_NAME, APARTMENT_HOUSES_NAME, ALL_OBJECTS_NAME, CENTER_MASS_NAME,\
         KIOSKS_OT, MFC_OT, LIBS_OT, CLUBS_OT, SPORTS_OT,\
             INFRA_TABLES_NAMES_BY_OBJECTS, INFRA_GEODATA_COL, INFRA_NEEDED_COLS_BY_OBJECTS,\
-                LIST_STEP, MOSCOW_POPULATION_NAME, LATITUDE_COL, LONGITUDE_COL
+                LIST_STEP, MOSCOW_POPULATION_NAME, LATITUDE_COL, LONGITUDE_COL, CENTER_MASS_ID_COL
 tqdm.pandas()
 
 
@@ -92,6 +92,12 @@ def calc_distances_matrix_locally(config_path: str,
                                  save_pickle: bool=False,
                                  include_houses: bool=False,
                                  concat_slices: bool=True,
+                                 table1: str=ALL_OBJECTS_NAME,
+                                 table2: str=CENTER_MASS_NAME,
+                                 pickle_name: str='distances_matrix.pickle',
+                                 id1_col: str=OBJECT_ID_COL,
+                                 id2_col: str=CENTER_MASS_ID_COL,
+                                 meters_to_sec_coef: float=1.152,
                                  max_slice_size: int=10**7) -> pd.DataFrame:
     """Создает и заполняет матрицу расстояний локально
      расчеты происходят локально на таблицах, выгружаемых из БД
@@ -111,31 +117,32 @@ def calc_distances_matrix_locally(config_path: str,
         db_config = json.load(db_file)
 
     database = DB(db_config)
-    print(f'Загружаем из БД {ALL_OBJECTS_NAME}')
-    data = database.get_table_from_bd(ALL_OBJECTS_NAME)
-    print(f'Загружаем из БД {CENTER_MASS_NAME}')
-    mass = database.get_table_from_bd(CENTER_MASS_NAME)
+    print(f'Загружаем из БД {table1}')
+    data1 = database.get_table_from_bd(table1)
+    print(f'Загружаем из БД {table2}')
+    data2 = database.get_table_from_bd(table2)
 
     if not include_houses:
-        print('include_houses = False, многоквартирные дома будут исключены из расчета рассточний.')
-        data = data[data['object_type'] != 'многоквартирный дом']
+        print('include_houses = False,'
+        ' многоквартирные дома будут исключены из рассчета расстояний.')
+        data1 = data1[data1['object_type'] != 'многоквартирный дом']
 
-    data_coords = data[[OBJECT_ID_COL, LATITUDE_COL, LONGITUDE_COL]]
-    mass_coords = mass[['id_center_mass', 'lat', 'lon']]
+    coords1 = data1[[id1_col, LATITUDE_COL, LONGITUDE_COL]]
+    coords2 = data2[[id2_col, LATITUDE_COL, LONGITUDE_COL]]
 
-    size1, size2 = data_coords.shape[0], mass_coords.shape[0]
+    size1, size2 = coords1.shape[0], coords2.shape[0]
     cross_size = size1 * size2
     n_splits = int( np.ceil(cross_size / max_slice_size) )
     max_slice_size = int( np.ceil(size1 / n_splits) )
 
-    slices_gen = helpers.df_generator(data_coords, max_slice_size)
+    slices_gen = helpers.df_generator(coords1, max_slice_size)
     slices_list = []
     print(f'Размер картезианова датафрейма: {size1} x {size2} = {cross_size}.\n'
           f'Датафрейм будет разбит на {n_splits} частей')
     print('Получаем картезиановы датафреймы для каждой части:')
     time.sleep(.5)
     for df_slice in tqdm(slices_gen, total=n_splits):
-        slices_list.append(df_slice.merge(mass_coords, how='cross'))
+        slices_list.append(df_slice.merge(coords2, how='cross'))
     print('Считаем расстояния:')
     time.sleep(.5)
     for i, df_slice in tqdm(enumerate(slices_list), total=n_splits):
@@ -145,7 +152,17 @@ def calc_distances_matrix_locally(config_path: str,
             'lon_x',
             'lat_y',
             'lon_y'
-            )
+            ).round(0).astype(int)
+        slices_list[i]['walk_time'] = (
+            slices_list[i]['distance'] * meters_to_sec_coef
+            ).round(0).astype(int)
+        slices_list[i] = slices_list[i].drop(
+            columns=[
+                'lat_x',
+                'lon_x',
+                'lat_y',
+                'lon_y'
+        ])
 
     all_dists = slices_list
     if concat_slices:
@@ -153,8 +170,8 @@ def calc_distances_matrix_locally(config_path: str,
         all_dists = pd.concat(slices_list, ignore_index=True)
         print('успешно')
     if save_pickle:
-        filepath = os.path.join(PATH_TO_ROOT, 'data', 'temporary', 'distances_matrix.pickle')
-        print(f'Сохраняем pickle в {filepath} ... ', end='')        
+        filepath = os.path.join(PATH_TO_ROOT, 'data', 'temporary', pickle_name)
+        print(f'Сохраняем pickle в {filepath} ... ', end='')
         all_dists.to_pickle(
             filepath, protocol=4
             )
@@ -208,13 +225,16 @@ class MakeCenterMass():
 
         lat_km, lon_km = helpers.find_degreee_to_distance(apartment_houses)
         distance_to_degree = {'lat': 1/lat_km, 'lon': 1/lon_km}
-        df_result = pd.DataFrame()
+
+        results_list = []
         for step in list_step:
             df_result_step = helpers.make_net_with_center_mass(apartment_houses,
                                                                step,
                                                                distance_to_degree)
-            df_result = pd.concat([df_result_step,df_result])
-        self.center_mass = df_result
+            results_list.append(df_result_step.copy())
+
+        df_result = pd.concat(results_list)
+        self.center_mass = df_result.dropna()
 
 
     def make_center_mass_load_to_db(self,
