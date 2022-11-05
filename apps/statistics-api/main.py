@@ -2,6 +2,7 @@ import uvicorn
 from typing import Union
 import os
 from typing import List
+import json
 
 from postamats.utils import connections
 
@@ -34,9 +35,15 @@ def get_all_postomat_places():
 
     return all_postamat_places.to_json(orient='records', force_ascii=False)
 
+@app.get("/get_optimized_postomat_places")
+def get_optimized_postomat_places():
+
+    db = connections.DB()
+    all_postamat_places = db.get_by_sql("select * from all_objects_data where object_type!='многоквартирный дом' ")
+    return json.dumps({'optimized_points': list(all_postamat_places.sample(300).object_id)})
+
+
 def calculate_workload(center_mass_pd, distance_matrix_pd):
-    
-    distance_matrix_pd['walk_time'] = distance_matrix_pd['distance']
 
     only_nearest_points_min_dist = distance_matrix_pd.loc[distance_matrix_pd.groupby('id_center_mass').walk_time.idxmin()]
 
@@ -44,7 +51,7 @@ def calculate_workload(center_mass_pd, distance_matrix_pd):
 
     quantity_people_to_postomat = only_nearest_points_min_dist_with_pop.groupby('object_id').agg({'population': 'sum'}).reset_index()
 
-    distance_till_nearest_postomat = only_nearest_points_min_dist_with_pop[['id_center_mass', 'walk_time']]
+    distance_till_nearest_postomat = only_nearest_points_min_dist_with_pop[['id_center_mass', 'walk_time','lat','lon']]
 
 
     return quantity_people_to_postomat, distance_till_nearest_postomat
