@@ -8,6 +8,8 @@ from shapely.geometry import Polygon
 import numpy as np
 import pandas as pd
 
+from postamats.global_constants import CENTER_LAT, CENTER_LON
+
 # Радиус Земли на широте Москвы
 EARTH_R = 6363568
 
@@ -23,6 +25,7 @@ def find_center_mass(x: np.array,
     y - np.array of y-coordinates
     m - np.array of mass (number of people)
     """
+    x, y, m = np.asarray(x), np.asarray(y), np.asarray(m)
     cgx = np.sum(x*m)/np.sum(m)
     cgy = np.sum(y*m)/np.sum(m)
     sum_m = sum(m)
@@ -51,9 +54,9 @@ def haversine(lat1: float, lon1: float,
     #  two points on the surface of a sphere.
     #  The first coordinate of each point is assumed to be the latitude,
     #  the second is the longitude, given in radians
-    dlon = lon2 - lon1
-    dlat = lat2 - lat1
-    hav_arg = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    dlon = abs(lon2 - lon1)
+    dlat = abs(lat2 - lat1)
+    hav_arg = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * (sin(dlon/2)**2)
     hav_dist = 2 * asin(sqrt(hav_arg))
     distance = EARTH_R * hav_dist
     return distance
@@ -91,11 +94,11 @@ def haversine_vectorized(
     #  two points on the surface of a sphere.
     #  The first coordinate of each point is assumed to be the latitude,
     #  the second is the longitude, given in radians
-    dlon = rcoords[lon2_col] - rcoords[lon1_col]
-    dlat = rcoords[lat2_col] - rcoords[lat1_col]
+    dlon = abs(rcoords[lon2_col] - rcoords[lon1_col])
+    dlat = abs(rcoords[lat2_col] - rcoords[lat1_col])
 
     hav_arg = np.sin(dlat/2)**2 + \
-        np.cos(rcoords[lat1_col]) * np.cos(rcoords[lat2_col]) * np.sin(dlon/2)**2
+        np.cos(rcoords[lat1_col]) * np.cos(rcoords[lat2_col]) * (np.sin(dlon/2)**2)
     hav_dist = 2 * np.arcsin(np.sqrt(hav_arg))
     distance = EARTH_R * hav_dist
     return distance
@@ -190,6 +193,37 @@ def make_net_with_center_mass(df_homes: pd.DataFrame,
     df_agg['step'] = step
 
     return df_agg
+
+
+def calc_cartesian_coords(lat_series: pd.Series,
+                          lon_series: pd.Series,
+                          center_lat: float=CENTER_LAT,
+                          center_lon: float=CENTER_LON) -> pd.DataFrame:
+    """Переводит геокоординаты в декартовы, считая нулем координат
+     центр Москвы
+
+    Args:
+        lat_series (pd.Series): _description_
+        lon_series (pd.Series): _description_
+        moscow_center_lat (float): _description_
+        moscow_center_lon (float): _description_
+
+    Returns:
+        pd.DataFrame: _description_
+    """
+    cart_coords = pd.DataFrame()
+    cart_coords['lat'] = np.asarray(lat_series)
+    cart_coords['lon'] = np.asarray(lon_series)
+    cart_coords['c_lat'] = center_lat
+    cart_coords['c_lon'] = center_lon
+    cart_coords['x'] = haversine_vectorized(cart_coords, 'c_lat', 'c_lon', 'c_lat', 'lon')
+    cart_coords['y'] = haversine_vectorized(cart_coords, 'c_lat', 'c_lon', 'lat', 'c_lon')
+    minus_cond_x = cart_coords['c_lon'] > cart_coords['lon']
+    minus_cond_y = cart_coords['c_lat'] > cart_coords['lat']
+    cart_coords.loc[minus_cond_x, 'x'] = cart_coords.loc[minus_cond_x, 'x'] * (-1)
+    cart_coords.loc[minus_cond_y, 'y'] = cart_coords.loc[minus_cond_y, 'y'] * (-1)
+
+    return cart_coords[['x', 'y']]
 
 
 def get_text_hash(text: str) -> str:

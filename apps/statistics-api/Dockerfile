@@ -11,8 +11,12 @@ ENV db_name postgres
 # 
 WORKDIR /code
 
+
 # 
-COPY ./ /code/
+COPY apps/statistics-api/ /code/app
+COPY src/ /code/src/
+COPY requirements.txt /code/
+COPY setup.py /code/
 
 # 
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt

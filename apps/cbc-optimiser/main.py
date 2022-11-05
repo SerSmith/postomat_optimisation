@@ -2,6 +2,7 @@ import uvicorn
 from typing import Union
 import os
 from typing import List
+import json
 
 from postamats.utils import connections
 
@@ -29,4 +30,3 @@ def get_optim_by_():
     all_postamat_places = db.get_by_sql("select * from all_objects_data where object_type!='многоквартирный дом' ")
 
     return all_postamat_places.to_json(orient='records', force_ascii=False)
-

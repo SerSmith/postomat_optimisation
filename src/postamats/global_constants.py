@@ -1,6 +1,9 @@
 """Константы для функций проекта
 """
 
+CENTER_LAT = 55.755864
+CENTER_LON = 37.617698
+
 # названия промежуточных табличек с обработанными данными из
 # https://data.mos.ru/opendata/60562/data/table?versionNumber=3&releaseNumber=823
 # https://dom.gosuslugi.ru/#!/houses
@@ -16,17 +19,24 @@ MFC_NAME = 'mfc_all_data'
 LIBS_NAME = 'libs_all_data'
 CLUBS_NAME = 'clubs_all_data'
 SPORTS_NAME = 'sports_all_data'
+
+RAW_METRO_NAME = 'raw_metro_data'
+ALL_METRO_NAME = 'all_metro_objects_data'
 # табличка всех объектов, подходящих для размещения постаматов
 ALL_OBJECTS_NAME = 'all_objects_data'
 # табличка с данными о населении Москвы по муниципальным округам
 MOSCOW_POPULATION_NAME = 'moscow_population'
 # табличка, где лежат центры масс по населению для ячеек секи
 CENTER_MASS_NAME = 'centers_mass'
+
 # список размеров величины шага в км в сетке, которую мы накладываем на дома
 LIST_STEP = [0.1, 0.5, 1, 2]
 
 # максимальный размер датафрейма, пролезающий в память
 MAX_DF_SIZE = 10**7
+
+# коэффициент перевода метров в секунды ходьбы
+METERS_TO_SEC_COEF = 1.152
 
 NAN_VALUES = ['', '-', '*']
 
@@ -39,6 +49,11 @@ ADM_AREA_COL = 'adm_area'
 
 # для сырой таблички с данными ГИС ОЖФ свой айдишник
 OBJECT_ID_GIS_COL = 'object_id_gis'
+
+# айди объекта метро (вход, кластер входов, взвешенный центр по всем входам - центр меро)
+OBJECT_ID_METRO_COL = 'object_id_metro'
+
+CENTER_MASS_ID_COL = 'id_center_mass'
 
 # как мы назовем колонку с данными о широте
 LATITUDE_COL = 'lat'
