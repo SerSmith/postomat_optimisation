@@ -144,11 +144,14 @@ class DB:
 
     def get_by_filter(self,
                       table_name: str,
-                      filter_dict) -> pd.DataFrame:
+                      filter_dict,
+                      additional_filter: str =None) -> pd.DataFrame:
 
         connection = self.__create_connection()
         where_str = "AND ".join([self.__make_filter(k, filter_dict[k]) for k in filter_dict])
         query = f"select * from {table_name} WHERE {where_str}"
+        if additional_filter is not None:
+            query += f" AND {additional_filter}"
         df = pd.read_sql_query(query, connection)
         connection.close()
         return df
