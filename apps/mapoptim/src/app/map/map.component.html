@@ -1,0 +1,21 @@
+<div class="map-container">
+
+  <div class="map-frame">
+
+    <div id="map"></div>
+
+  </div>
+  <div class="actions">
+    <div class="filters-icon" (click)="showFilters()">
+      <img class="filters-icon-img" src="assets/filters.png" alt="filters">
+    </div>
+    <div class="filters-icon" [routerLink]="['/table']">
+      <img class="filters-icon-img" src="assets/table-icon.png" alt="table">
+    </div>
+    <div class="filters-icon" (click)="teest()">
+      <img class="filters-icon-img" src="assets/table-icon.png" alt="table">
+    </div>
+  </div>
+
+  <div class="filters" *ngIf="filtersShowed"></div>
+</div>
