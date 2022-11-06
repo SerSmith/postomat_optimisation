@@ -1,0 +1,17 @@
+<div class="left-panel">
+  <p class="showInfo-text"><span class="showInfo-label">Адресс:</span>{{selectedPoint.address}}</p>
+  <p class="showInfo-text"><span class="showInfo-label">Район:</span>{{selectedPoint.district}}</p>
+  <p class="showInfo-text"><span class="showInfo-label">Округ:</span>{{selectedPoint.adm_area}}</p>
+  <p class="showInfo-text"><span class="showInfo-label">Тип объекта:</span>{{selectedPoint.object_type}}</p>
+  <form [formGroup]="typeForm" (change)="changeType()">
+    <div class="formFilters-section">
+      <label class="showInfo-label">Тип точки:</label>
+      <select formControlName="selectType" class="input-t">
+          <option *ngFor="let type of types" >{{type}}</option>
+      </select>
+    </div>
+  </form>
+  <div class="left-panel-icon">
+    <img class="left-panel-icon-img" src="assets/close.png" (click)="closeInfo()"></div>
+</div>
+

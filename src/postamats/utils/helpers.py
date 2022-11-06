@@ -10,7 +10,12 @@ from shapely.geometry import Polygon
 import numpy as np
 import pandas as pd
 
-from fastapi import FastAPI, Query, Depends
+
+from typing import Optional
+
+from postamats.global_constants import CENTER_LAT, CENTER_LON
+from fastapi import Query
+
 
 from postamats.global_constants import CENTER_LAT, CENTER_LON
 from postamats.utils.connections import PATH_TO_ROOT
@@ -381,14 +386,14 @@ def parse_inside(names):
     return names_list
 
 
-def parse_object_type_filter_list(possible_points: List[str] = Query(None)) -> Optional[List]:
+def parse_object_type_filter_list(object_type_filter: List[str] = Query(None, description="Список типов обектов размещения: киоск, ")) -> Optional[List]:
     """
     accepts strings formatted as lists with square brackets
     names can be in the format
     "[bob,jeff,greg]" or '["bob","jeff","greg"]'
     """
 
-    names_list = parse_inside(possible_points)
+    names_list = parse_inside(object_type_filter)
 
     return names_list
 
@@ -443,19 +448,32 @@ def add_quates(obj_list):
     if obj_list is not None:
         return ["'" + str(s) + "'" for s in obj_list]
 
+
+def parse_list_possidble_points(list_possidble_points: List[str] = Query(None)) -> Optional[List]:
+    """
+    accepts strings formatted as lists with square brackets
+    names can be in the format
+    "[bob,jeff,greg]" or '["bob","jeff","greg"]'
+    """
+
+
+    names_list = parse_inside(list_possidble_points)
+
+    return names_list
+
 def make_points_lists(db,
-                      object_type_filter_list,
-                      district_type_filter_list,
-                      adm_areat_type_filter_list,
-                      banned_points):
+                      object_type_filter_list: Optional[List[str]],
+                      district_type_filter_list: Optional[List[str]],
+                      adm_areat_type_filter_list: Optional[List[str]],
+                      banned_points: Optional[List[str]]):
     """На основе переданных фильтров формируем список точек, где могут стоят постаматы
 
     Args:
-        db (_type_): _description_
-        object_type_filter_list (_type_): _description_
-        district_type_filter_list (_type_): _description_
-        adm_areat_type_filter_list (_type_): _description_
-        banned_points (_type_): _description_
+        db (_type_): конектшен к БД
+        object_type_filter_list (Optional(List[str])): типы объектов
+        district_type_filter_list (Optional(List[str])): округа
+        adm_areat_type_filter_list (Optional(List[str])): районы
+        banned_points (Optional(List[str])): список точек,  где запрещено ставить постаматы
 
     Returns:
         _type_: _description_
@@ -516,3 +534,4 @@ def plot_map(
     ax.axis('off')
     ax.imshow(mos_img, zorder=0, extent=bbox, aspect='equal')
     plt.show()
+
