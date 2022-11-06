@@ -11,10 +11,9 @@ export class FiltersComponent implements OnInit {
   @Output() selectedFilters1 = new EventEmitter();
   @Output() selectedFilters2 = new EventEmitter();
 public types = ["киоск","cпортивный объект","библиотека","МФЦ","дом культуры или клуб"];
-public optTypes=['1','2'];
+public optTypes=['Оптимизация на основе солвера','Эврестическая модель на основе kmeans'];
 public adm_area = [
   "Восточный административный округ",
-    "Зеленоградский административный округ",
     "Северо-Западный административный округ",
     "Западный административный округ",
     "Северо-Восточный административный округ",
@@ -22,9 +21,8 @@ public adm_area = [
     "Северный административный округ",
     "Юго-Восточный административный округ",
     "Юго-Западный административный округ",
-    "Центральный административный округ",
-    "Новомосковский административный округ",
-    "Троицкий административный округ"];
+    "Центральный административный округ"
+];
  public districts = [
     "район Вешняки",
   "район Матушкино",
@@ -180,15 +178,18 @@ public adm_area = [
  public selectedOptimization: string = '';
   constructor() {
     this.optionsForm = new FormGroup({
-      selectedTypes: new FormControl(null),
+      selectedTypes: new FormControl(),
       selectedArea: new FormControl(null),
       selectedDistricts: new FormControl(null),
       onlyRecommed: new FormControl(null),
-      postamatQuant: new FormControl(null),
-      metroImportance: new FormControl(null),
-      large_houses_priority:new FormControl(null),
-      opt_time:new FormControl(null),
-      max_time:new FormControl(null)
+      onlyBan: new FormControl(null),
+      onlyDop: new FormControl(null),
+      onlyFix: new FormControl(null),
+      postamatQuant: new FormControl(1000),
+      metroImportance: new FormControl(0.5),
+      large_houses_priority:new FormControl(0.5),
+      opt_time:new FormControl(100),
+      max_time:new FormControl(15)
     })
     this.optForm = new FormGroup({
       optSelect: new FormControl(null),
@@ -198,14 +199,13 @@ public adm_area = [
   ngOnInit(): void {
   }
 public test(){
-  console.log(this.optionsForm.value);
   this.selectedFilters.emit(this.optionsForm.value);
 }
 public test1(){
     this.selectedFilters1.emit(this.optionsForm.value);
 }
 public test2(){
-    this.selectedFilters2.emit(this.optionsForm.value);
+    this.selectedFilters2.emit({form:this.optionsForm.value, typeOpt:this.optForm.value});
 }
 public setFilter(){
     this.isFilters=true;

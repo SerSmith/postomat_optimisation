@@ -53,7 +53,7 @@ z-index: 2;
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-left: 10px;
+  margin: 5px;
 }
 .filters{
   position: absolute;
@@ -97,4 +97,24 @@ z-index: 2;
 }
 .toBottom{
   bottom: 0;
+}
+.loader{
+  width: 200px;
+  height: 100px;
+  display: flex;
+  position: absolute;
+  top:0;
+  left: 50%;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+  background-color: white;
+  border-radius:15px;
+  box-shadow: 0 0 16px 4px rgba(0, 0, 0, 0.5);
+}
+.left-panel-icon{
+  position: absolute;
+  top: 10px;
+  right: 10px;
 }

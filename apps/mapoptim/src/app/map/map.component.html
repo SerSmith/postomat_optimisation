@@ -7,14 +7,14 @@
   </div>
   <div class="actions">
     <div class="filters-icon" (click)="showFilters()">
-      <img class="filters-icon-img" src="assets/filters.png" alt="filters">
+      <img class="filters-icon-img" src="../../assets/filter.png" alt="filters">
     </div>
     <div class="filters-icon" [routerLink]="['/table']">
-      <img class="filters-icon-img" src="assets/table-icon.png" alt="table">
+      <img class="filters-icon-img" src="../../assets/table.png" alt="table">
     </div>
-    <div class="filters-icon">
-      <img class="filters-icon-img" src="assets/table-icon.png" alt="table">
-    </div>
+    <a class="filters-icon" href='{{saveLink}}' *ngIf="optType">
+      <img class="filters-icon-img" src="../../assets/save.png" alt="save">
+    </a>
   </div>
 
   <div class="filters" *ngIf="filtersShowed">
@@ -30,7 +30,11 @@
   </div>
   <div class="map-statictic" *ngIf="parametersList">
     <ng-container *ngFor="let parameter of parametersList">
-    <p class="map-statictic-text">Постомат ближе {{parameter.time}} минут ходьбы: {{parameter.percent_people}}%</p>
+      <p class="map-statictic-text">Постомат ближе {{parameter.time}} минут ходьбы: {{parameter.percent_people}}%</p>
     </ng-container>
+  </div>
+  <div class="loader" *ngIf="loader">Загрузка
+    <div class="left-panel-icon">
+      <img class="left-panel-icon-img" src="../../assets/close.png" (click)="close()"></div>
   </div>
 </div>
