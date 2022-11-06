@@ -7,8 +7,10 @@ from math import radians, cos, sin, asin, sqrt, pi
 from shapely.geometry import Polygon
 import numpy as np
 import pandas as pd
+from typing import Union, Optional
 
 from postamats.global_constants import CENTER_LAT, CENTER_LON
+from fastapi import FastAPI, Query, Depends
 
 # Радиус Земли на широте Москвы
 EARTH_R = 6363568
