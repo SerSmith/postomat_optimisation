@@ -44,9 +44,10 @@ def get_kmeans_optimize_points(object_type_filter_list: List[str] = Depends(h.pa
     optimised_list = kmeans_optimize_points(possible_postomats,
                                             fixed_points,
                                             quantity_postamats_to_place,
-                                            metro_weight,
-                                            large_houses_priority,
-                                            max_time)
+                                            max_time=max_time,
+                                            metro_weight=metro_weight,
+                                            large_houses_priority=large_houses_priority,
+                                            is_local_run=False)
 
 
     output = json.dumps({'optimized_points': optimised_list})

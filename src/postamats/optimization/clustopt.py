@@ -234,6 +234,7 @@ def kmeans_optimize_points(possible_points: List[str],
     Returns:
         List[str]: _description_
     """
+
     if not possible_points:
         warn('Не получено ни одной точки для размещения постамата, возвращаю пустой список')
         return []
