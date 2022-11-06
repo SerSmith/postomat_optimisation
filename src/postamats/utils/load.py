@@ -122,13 +122,18 @@ def calc_distances_matrix_locally(config_path: str,
     print(f'Загружаем из БД {table2}')
     data2 = database.get_table_from_bd(table2)
 
+    tbl1_cols = [id1_col, LATITUDE_COL, LONGITUDE_COL]
+    tbl2_cols = [id2_col, LATITUDE_COL, LONGITUDE_COL]
+    if table2==CENTER_MASS_NAME:
+        tbl2_cols += ['step']
+
     if not include_houses:
         print('include_houses = False,'
         ' многоквартирные дома будут исключены из рассчета расстояний.')
         data1 = data1[data1['object_type'] != 'многоквартирный дом']
 
-    coords1 = data1[[id1_col, LATITUDE_COL, LONGITUDE_COL]]
-    coords2 = data2[[id2_col, LATITUDE_COL, LONGITUDE_COL]]
+    coords1 = data1[tbl1_cols].dropna()
+    coords2 = data2[tbl2_cols].dropna()
 
     size1, size2 = coords1.shape[0], coords2.shape[0]
     cross_size = size1 * size2

@@ -1,19 +1,21 @@
 """Вспомогательные функции
 """
-from typing import Dict, Tuple, List, Generator, Optional
+import os
+from typing import Dict, Tuple, List, Generator, Optional, Union
 import hashlib
 from warnings import warn
 from math import radians, cos, sin, asin, sqrt, pi
-from fastapi import Query
+import matplotlib.pyplot as plt
 from shapely.geometry import Polygon
 import numpy as np
 import pandas as pd
-from typing import Union, Optional
 
-from postamats.global_constants import CENTER_LAT, CENTER_LON
 from fastapi import FastAPI, Query, Depends
 
-# Радиус Земли на широте Москвыx
+from postamats.global_constants import CENTER_LAT, CENTER_LON
+from postamats.utils.connections import PATH_TO_ROOT
+
+# Радиус Земли на широте Москвы
 EARTH_R = 6363568
 
 # скорость ходьбы в метрах
@@ -379,7 +381,6 @@ def parse_inside(names):
     return names_list
 
 
-
 def parse_object_type_filter_list(possible_points: List[str] = Query(None)) -> Optional[List]:
     """
     accepts strings formatted as lists with square brackets
@@ -391,6 +392,7 @@ def parse_object_type_filter_list(possible_points: List[str] = Query(None)) -> O
 
     return names_list
 
+
 def parse_list_fixed_points(fixed_points: List[str] = Query(None)) -> Optional[List]:
     """
     accepts strings formatted as lists with square brackets
@@ -399,18 +401,6 @@ def parse_list_fixed_points(fixed_points: List[str] = Query(None)) -> Optional[L
     """
 
     names_list = parse_inside(fixed_points)
-
-    return names_list
-
-
-def parse_object_type_filter_list(object_type_filter_list: List[str] = Query(None)) -> Optional[List]:
-    """
-    accepts strings formatted as lists with square brackets
-    names can be in the format
-    "[bob,jeff,greg]" or '["bob","jeff","greg"]'
-    """
-
-    names_list = parse_inside(object_type_filter_list)
 
     return names_list
 
@@ -488,3 +478,41 @@ def make_points_lists(db,
     possible_postomats = list(set(objects['object_id'].to_list()).difference(set(banned_points)))
     return possible_postomats
     
+def plot_map(
+    cartes1: pd.DataFrame,
+    cartes2: Optional[pd.DataFrame]=None,
+    size1: int=10,
+    size2: int=1,
+    alpha1: float=.2,
+    alpha2: float=1,
+    c1: Union[str, List]='b',
+    c2: Union[str, List]='r'):
+    """Печатает точки на фоне предсохраненной карты Москвы
+
+    Args:
+        cartes1 (pd.DataFrame): _description_
+        cartes2 (_type_, optional): _description_. Defaults to None.
+        size1 (int, optional): _description_. Defaults to 10.
+        size2 (int, optional): _description_. Defaults to 1.
+        alpha1 (float, optional): _description_. Defaults to .2.
+        alpha2 (int, optional): _description_. Defaults to 1.
+        c1 (str, optional): _description_. Defaults to 'b'.
+        c2 (str, optional): _description_. Defaults to 'r'.
+    """
+
+    mos_img = plt.imread(os.path.join(PATH_TO_ROOT, 'data', 'images', 'map.png'))
+
+    bbox_geo = (37.3260, 37.9193, 55.5698, 55.9119)
+    bbox_cartes = calc_cartesian_coords(bbox_geo[2:], bbox_geo[:2])
+    bbox = bbox_cartes['x'].to_list() + bbox_cartes['y'].to_list()
+
+    fig, ax = plt.subplots(figsize=(12,12))
+    ax.scatter(cartes1['x'], cartes1['y'], zorder=1, alpha=alpha1, c=c1, s=size1)
+    if cartes2 is not None:
+        ax.scatter(cartes2['x'], cartes2['y'], zorder=1, alpha=alpha2, c=c2, s=size2)
+
+    ax.set_xlim(bbox[0],bbox[1])
+    ax.set_ylim(bbox[2],bbox[3])
+    ax.axis('off')
+    ax.imshow(mos_img, zorder=0, extent=bbox, aspect='equal')
+    plt.show()
