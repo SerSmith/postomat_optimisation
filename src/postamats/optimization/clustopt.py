@@ -179,13 +179,24 @@ def get_data_from_db(
     return all_apart, all_metro, all_points
 
 
-def kmeans_optimize_points(possible_points: pd.DataFrame,
-                           fixed_points: pd.DataFrame,
-                           postamat_quant: pd.DataFrame,
+def kmeans_optimize_points(possible_points: List[str],
+                           fixed_points: List[str],
+                           postamat_quant: int,
                            metro_importance: Optional[float]=None,
                            large_houses_priority: Optional[float]=None,
                            is_local_run: bool=False) -> List[str]:
-    """Расставляет постаматы
+    """_summary_
+
+    Args:
+        possible_points (List[str]): _description_
+        fixed_points (List[str]): _description_
+        postamat_quant (int): _description_
+        metro_importance (Optional[float], optional): _description_. Defaults to None.
+        large_houses_priority (Optional[float], optional): _description_. Defaults to None.
+        is_local_run (bool, optional): _description_. Defaults to False.
+
+    Returns:
+        List[str]: _description_
     """
     db_config = None
 
