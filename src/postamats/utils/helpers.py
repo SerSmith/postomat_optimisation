@@ -399,6 +399,7 @@ def parse_object_type_filter_list(object_type_filter: List[str] = Query(None, de
 
 
 def parse_list_fixed_points(fixed_points: List[str] = Query(None, description="Список точек, где постамат уже стоит")) -> Optional[List]:
+
     """
     accepts strings formatted as lists with square brackets
     names can be in the format
@@ -535,3 +536,15 @@ def plot_map(
     ax.imshow(mos_img, zorder=0, extent=bbox, aspect='equal')
     plt.show()
 
+
+def weigh_population(population, alpha, shift):
+    """преобразует население в весовой коэффициент
+
+    Args:
+        weight (_type_): _description_
+        alpha (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    return 1 / ( 1 + np.exp(-alpha * (population-shift)) )
