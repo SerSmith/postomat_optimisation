@@ -6,6 +6,8 @@ CENTER_LON = 37.617698
 
 # какой радиус по умолчанию обслуживает 1 установленный постамат
 MAX_ACTIVE_RADIUS = 400
+PI = 3.1415926535
+MAX_POSTAMAT_AREA = PI * (MAX_ACTIVE_RADIUS**2)
 
 # названия промежуточных табличек с обработанными данными из
 # https://data.mos.ru/opendata/60562/data/table?versionNumber=3&releaseNumber=823
@@ -39,7 +41,7 @@ LIST_STEP = [0.1, 0.5, 1, 2]
 MAX_DF_SIZE = 10**7
 
 # коэффициент перевода метров в секунды ходьбы
-METERS_TO_SEC_COEF = 1.152
+METERS_TO_SEC_COEF = 1.152 # сек / м
 
 NAN_VALUES = ['', '-', '*']
 
