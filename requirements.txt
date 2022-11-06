@@ -12,4 +12,6 @@ fastapi>=0.68.0,<0.69.0
 pydantic>=1.8.0,<2.0.0
 uvicorn==0.19.0
 sklearn==0.0
+slugify==0.0.1
 Pyomo==6.4.2
+XlsxWriter==3.0.3

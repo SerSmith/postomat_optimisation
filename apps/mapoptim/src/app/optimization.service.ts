@@ -40,7 +40,7 @@ export class OptimizationService {
   }
   public optim(filter: any): Observable<any> {
     console.log(filter.banned_points);
-    let param = "?quantity_postamats_to_place="+filter.postamatQuant+"&step=0.1&metro_weight="+
+    let param = "?quantity_postamats_to_place="+filter.postamatQuant+"&step=1&metro_weight="+
       filter.metroImportance+"&opt_tome="+filter.opt_time+"&max_time="+
       filter.max_time+filter.selectedTypes+filter.selectedDistricts+
       filter.selectedArea+filter.banned_points+filter.fixed_points;
