@@ -64,7 +64,7 @@ def optimize_by_solver(population_points,
     model.con_metro_time_to_nearest_postamat = pyo.Constraint( list(distanses_metro[['object_id_metro',	'object_id']].itertuples()) ,rule=con_metro_time_to_nearest_postamat)
 
 
-    model.needed_postamats = pyo.Constraint(expr=sum([model.has_postomat[p] for  p in postomat_places])  >= quantity_postamats_to_place)
+    model.needed_postamats = pyo.Constraint(expr=sum([model.has_postomat[p] for  p in postomat_places])  == quantity_postamats_to_place)
 
     sum_center_mass = sum(model.center_mass_time_to_nearest_postamat[p] * population_dict[p] for p in population_points)
     sum_metro = sum(model.metro_time_to_nearest_postamat[p] * population_dict[p] for p in object_id_metro_list)

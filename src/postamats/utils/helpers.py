@@ -458,6 +458,18 @@ def make_points_lists(db,
                       district_type_filter_list,
                       adm_areat_type_filter_list,
                       banned_points):
+    """На основе переданных фильтров формируем список точек, где могут стоят постаматы
+
+    Args:
+        db (_type_): _description_
+        object_type_filter_list (_type_): _description_
+        district_type_filter_list (_type_): _description_
+        adm_areat_type_filter_list (_type_): _description_
+        banned_points (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
     
     if object_type_filter_list is None:
         object_type_filter_list = []
@@ -471,7 +483,7 @@ def make_points_lists(db,
     objects = db.get_by_filter("all_objects_data", {"object_type": add_quates(object_type_filter_list),
                                                     "district": add_quates(district_type_filter_list),
                                                     "adm_area": add_quates(adm_areat_type_filter_list)
-                                                 })
+                                                 }, additional_filter="object_type != 'многоквартирный дом'")
 
     possible_postomats = list(set(objects['object_id'].to_list()).difference(set(banned_points)))
     return possible_postomats

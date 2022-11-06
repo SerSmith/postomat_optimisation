@@ -1,5 +1,3 @@
-import uvicorn
-from typing import Union
 from typing import List
 import json
 
@@ -7,10 +5,16 @@ from postamats.utils import connections
 from postamats.optimization import optimisation
 import postamats.utils.helpers as h
 
-from fastapi import FastAPI, Query, Depends
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI()
+app = FastAPI(title="solverop",
+              description="Сервис, оптимизирующий расстановку постоматов на основе cbc солвера ",
+              version="2.0.0",
+              сontact={
+                    "name": "Кузнецов Сергей",
+                    "email": "sergeysmith1995@ya.ru",
+                })
 
 app.add_middleware(
     CORSMiddleware,
@@ -31,13 +35,18 @@ def get_optimized_postomat_places(object_type_filter_list: List[str] = Depends(h
                                   quantity_postamats_to_place:int =1500,
                                   step:float =0.5,
                                   metro_weight:float =0.5,
-                                  opt_tome:int =250,
+                                  opt_time:int =250,
                                   max_time:int =15):
 
-    kwargs = {'ratioGap': 0.00001, 'sec': opt_tome}
+    #  Зададим параметры для непосредственно солвера, полный список можно найти тут
+    #  ratioGap - допустимое отклонение от потенциального оптимального решения
+    #  sec - максимальное время работы солвераб после которого он выдадет ссамое  лучшее найденное решенее
+    #  Если будет обнаружено, что имеющееся решениее отличается от потенциального оптимального меньше чем на ratioGap, 
+    #  то солвер выдаст результат раньше
+    kwargs = {'ratioGap': 0.00001, 'sec': opt_time}
 
+    # Конектктимся к базе, данные берутся из переменных окружения(не было времени разбираться  ссекретницей клауда)
     db = connections.DB()
-
 
     possible_postomats = h.make_points_lists(db,
                                              object_type_filter_list,
@@ -83,6 +92,8 @@ def get_optimized_postomat_places(object_type_filter_list: List[str] = Depends(h
                                                               population_dict,
                                                               precalculated_point,
                                                               **kwargs)
+    print(len(optimised_list))
+    print(str(results))
 
     output = json.dumps({'optimized_points': optimised_list,
                          'results': str(results)})
@@ -91,14 +102,8 @@ def get_optimized_postomat_places(object_type_filter_list: List[str] = Depends(h
 
 
 if __name__ == "__main__":
-    # uvicorn.run(app, host="0.0.0.0", port=8000)
-    # db = connections.DB()
-    # all_objects_data = db.get_by_filter("all_objects_data", {"object_type": ["'киоск'"]})
-    # all_ponts = all_objects_data['object_id'].unique()
-    # fixed_points = all_ponts[:10]
-    # possible_postomats = all_ponts[10:]
 
-    res = get_optimized_postomat_places(object_type_filter_list=["киоск"],
+    res = get_optimized_postomat_places(object_type_filter_list=[],
                                         district_type_filter_list=[],
                                         adm_areat_type_filter_list=[],
                                         fixed_points=[],
@@ -106,7 +111,6 @@ if __name__ == "__main__":
                                         quantity_postamats_to_place=1500,
                                         step=0.1,
                                         metro_weight=0.5,
-                                        opt_tome=50,
+                                        opt_time=250,
                                         max_time=15
                                         )
-    print(res)
