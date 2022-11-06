@@ -24,4 +24,4 @@ RUN pip install -e /code/.
 
 
 # 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--h11-max-incomplete-event-size", "1638400"]
