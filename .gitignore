@@ -140,3 +140,4 @@ data/**/*.*
 db_config.json
 
 apps/mapoptim/node_modules/*
+apps/mapoptim/.angular/*
