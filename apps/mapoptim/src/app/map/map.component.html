@@ -12,10 +12,25 @@
     <div class="filters-icon" [routerLink]="['/table']">
       <img class="filters-icon-img" src="assets/table-icon.png" alt="table">
     </div>
-    <div class="filters-icon" (click)="teest()">
+    <div class="filters-icon">
       <img class="filters-icon-img" src="assets/table-icon.png" alt="table">
     </div>
   </div>
 
-  <div class="filters" *ngIf="filtersShowed"></div>
+  <div class="filters" *ngIf="filtersShowed">
+    <app-filters (selectedFilters)="applyFilters($event)"
+                 (selectedFilters1)="resetFilters()"
+                 (selectedFilters2)="optFilters($event)"></app-filters>
+  </div>
+  <div class="showInfo" *ngIf="showedInfo" [ngClass]="{toBottom: !parametersList}">
+    <app-left-panel [selectedPoint]="selectedPoint"
+                    (closeInformation)="closeInformation()"
+                    (changePointType)="changePointType($event)"
+    ></app-left-panel>
+  </div>
+  <div class="map-statictic" *ngIf="parametersList">
+    <ng-container *ngFor="let parameter of parametersList">
+    <p class="map-statictic-text">Постомат ближе {{parameter.time}} минут ходьбы: {{parameter.percent_people}}%</p>
+    </ng-container>
+  </div>
 </div>

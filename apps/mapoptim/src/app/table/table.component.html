@@ -1,1 +1,15 @@
-<p>table works!</p>
+<div class="table">
+  <div class="filters-icon" [routerLink]="['/map']">
+    <img class="filters-icon-img" src="assets/table-icon.png" alt="map">
+  </div>
+  <ng-container *ngFor="let point of t">
+    <div class="table-row">
+      <div class="table-cell">{{point.address}}</div>
+      <div class="table-cell-small">{{point.object_type}}</div>
+      <div class="table-cell-small">{{point.lat}}</div>
+      <div class="table-cell-small">{{point.lon}}</div>
+      <div class="table-cell">{{point.adm_area}}</div>
+      <div class="table-cell-small">{{point.district}}</div>
+    </div>
+  </ng-container>
+</div>

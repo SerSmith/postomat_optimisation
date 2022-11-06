@@ -1,0 +1,27 @@
+.left-panel{
+  padding: 20px;
+  position: relative;
+  margin-bottom: 20px;
+}
+.showInfo-label{
+  margin-right: 4px;
+  font-style: normal;
+  font-weight: 900;
+  font-size: 16px;
+  line-height: 24px;
+}
+.left-panel-icon{
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+.left-panel-icon-img{
+  width: 20px;
+  height: 20px;
+}
+.showInfo-text{
+  margin: 6px 0;
+}
+.input-t{
+  width: 150px;
+}
