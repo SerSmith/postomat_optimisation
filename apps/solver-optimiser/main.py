@@ -26,7 +26,6 @@ app.add_middleware(
 )
 
 
-
 @app.get("/get_optimized_postomat_places")
 def get_optimized_postomat_places(object_type_filter_list: List[str] = Depends(h.parse_object_type_filter_list),
                                   district_type_filter_list: List[str] = Depends(h.parse_district_type_filter_list),
@@ -100,6 +99,7 @@ def get_optimized_postomat_places(object_type_filter_list: List[str] = Depends(h
                          'results': str(results)})
 
     return output
+
 
 
 if __name__ == "__main__":

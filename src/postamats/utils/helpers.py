@@ -386,14 +386,14 @@ def parse_inside(names):
     return names_list
 
 
-def parse_object_type_filter_list(possible_points: List[str] = Query(None)) -> Optional[List]:
+def parse_object_type_filter_list(object_type_filter: List[str] = Query(None, description="Список типов обектов размещения: киоск, ")) -> Optional[List]:
     """
     accepts strings formatted as lists with square brackets
     names can be in the format
     "[bob,jeff,greg]" or '["bob","jeff","greg"]'
     """
 
-    names_list = parse_inside(possible_points)
+    names_list = parse_inside(object_type_filter)
 
     return names_list
 
