@@ -13,13 +13,39 @@ from sklearn.metrics import pairwise_distances
 from postamats.utils import connections, helpers
 from postamats.utils.connections import PATH_TO_ROOT
 from postamats.global_constants import MAX_ACTIVE_RADIUS, LATITUDE_COL, LONGITUDE_COL,\
-    METERS_TO_SEC_COEF, MAX_POSTAMAT_AREA, MAX_ACTIVE_RADIUS
+    METERS_TO_SEC_COEF, MAX_POSTAMAT_AREA
 
 
 RANDOM_STATE = 27
+# параметры весовой функции
+ALPHA_POPULATION = .007
+SHIFT_POPULATION = 400
+
+WEIGHT_COL = 'weight'
+POPULATION_COL = 'population'
 
 
-def calculate_weights(data: pd.DataFrame, **kwargs) -> pd.Series:
+def correct_alpha(alpha, importance):
+    """корректирует коэффициент в helpers.weigh_population
+
+    Args:
+        alpha (_type_): _description_
+        importance (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    my_coef = 20 * abs(.5-importance) + int(importance == .5)
+    if importance < .5:
+        return alpha / my_coef
+    return alpha * my_coef
+
+
+def calculate_weights(data: pd.DataFrame,
+                      metro_weight: float=.5,
+                      large_houses_priority: float=.5,
+                      population_col: str=POPULATION_COL,
+                      set_all_to_ones=False) -> pd.Series:
     """Считает веса строк для кластеризатора на основе населения и т.д.
 
     Args:
@@ -28,9 +54,18 @@ def calculate_weights(data: pd.DataFrame, **kwargs) -> pd.Series:
     Returns:
         pd.Series: _description_
     """
-    # TODO: добавить расчет весов на основе населения и т.д.
-    sample_weight = pd.Series(index=data.index, data=1)
-    return sample_weight
+    if set_all_to_ones:
+        return pd.Series(index=data.index, data=1)
+
+    if (not set_all_to_ones) and (population_col not in data.columns):
+        warn(f'В данных отсутствует колонка {population_col}, все веса будут установлены в 1')
+        return pd.Series(index=data.index, data=1)
+
+    sample_weight = data[population_col].apply(
+        helpers.weigh_population,
+        args=(correct_alpha(ALPHA_POPULATION, large_houses_priority), SHIFT_POPULATION))
+
+    return sample_weight.fillna(0)
 
 
 def my_quality_score(mean_walk_time: float,
@@ -56,7 +91,7 @@ def my_quality_score(mean_walk_time: float,
 
 def sort_clusters_by_density(data: pd.DataFrame,
                               label_col: str='label',
-                              population_col: str='population',
+                              population_col: str=POPULATION_COL,
                               x_step: int=100,
                               y_step: int=100) -> tuple:
     """_summary_
@@ -120,6 +155,13 @@ def set_cluster_postamats(clust_df: pd.DataFrame,
     if points.shape[0]==0:
         return result
 
+    not_points_df = clust_df[~clust_df['is_point']].copy()
+
+    if not_points_df.shape[0]==0:
+        warn('На вход set_cluster_postamats получен датафрейм без данных о домах.'
+        'Постаматы расставить нельзя, будет возвращен пустой результат.')
+        return result
+
     n_clusters = num_clusters_coef * int( np.ceil(clust_area / MAX_POSTAMAT_AREA) )
     # если осталось меньше постаматов, чем хочет оптимизатор, берем, сколько осталось
     if remain_postamats_quant is not None:
@@ -129,11 +171,20 @@ def set_cluster_postamats(clust_df: pd.DataFrame,
             return result
         n_clusters = min(remain_postamats_quant, n_clusters)
 
+    if "weight" not in not_points_df.columns:
+        warn('В датафрейме отсутствует колонка weight, оптимизатор не будет учитывать'
+        ' данные о населении зданий, только расстояния до них.')
+        not_points_df[WEIGHT_COL] = 1
+
     # TODO: ставить больше кластеров и выбирать топ лучших
     # проверять, что кластеры стоят слишком близко
 
     clusterer = KMeans(n_clusters=n_clusters, random_state=RANDOM_STATE)
-    clusterer.fit_predict(clust_df.loc[~clust_df['is_point'], ['x', 'y']])
+
+    clusterer.fit_predict(
+        not_points_df[['x', 'y']],
+        sample_weight=not_points_df[WEIGHT_COL])
+
     centers = pd.DataFrame(data=clusterer.cluster_centers_, columns=['x', 'y'])
 
     dist = pairwise_distances(centers[['x', 'y']], points[['x', 'y']])
@@ -298,6 +349,7 @@ def kmeans_optimize_points(possible_points: List[str],
                                       metro_weight=metro_weight,
                                       large_houses_priority=large_houses_priority)
     sample_weight[apart_vs_points['is_point']] = 0
+    apart_vs_points[WEIGHT_COL] = sample_weight
 
     # теперь мы кластеризуем оставшиес точки притяжения
     dbscan = DBSCAN(eps=400, min_samples=5)

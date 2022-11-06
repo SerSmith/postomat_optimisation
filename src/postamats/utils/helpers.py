@@ -535,3 +535,15 @@ def plot_map(
     ax.imshow(mos_img, zorder=0, extent=bbox, aspect='equal')
     plt.show()
 
+
+def weigh_population(population, alpha, shift):
+    """преобразует население в весовой коэффициент
+
+    Args:
+        weight (_type_): _description_
+        alpha (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    return 1 / ( 1 + np.exp(-alpha * (population-shift)) )
