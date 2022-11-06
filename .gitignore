@@ -138,3 +138,5 @@ dmypy.json
 data/**/*.*
 
 db_config.json
+
+apps/mapoptim/node_modules/*
