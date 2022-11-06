@@ -136,10 +136,14 @@ class DB:
 
     @staticmethod
     def __make_filter(column, value_list):
-        # value_list_quates = ["'" + str(s) + "'" for s in value_list ]
-        value_list_quates = [str(s) for s in value_list ]
-        value_list_str = ", ".join(value_list_quates)
-        return f"{column} IN ({str(value_list_str)})"
+        if value_list:
+            value_list_quates = [str(s) for s in value_list]
+            value_list_str = ", ".join(value_list_quates)
+            out = f"{column} IN ({str(value_list_str)})"
+        else:
+            # если список фильтрации пустой - возвращаем все
+            out = "1 = 1"
+        return out
 
 
     def get_by_filter(self,

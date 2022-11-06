@@ -1,16 +1,17 @@
 """Вспомогательные функции
 """
-from typing import Dict, Tuple, List, Generator
+from typing import Dict, Tuple, List, Generator, Optional
 import hashlib
 from warnings import warn
 from math import radians, cos, sin, asin, sqrt, pi
+from fastapi import Query
 from shapely.geometry import Polygon
 import numpy as np
 import pandas as pd
 
 from postamats.global_constants import CENTER_LAT, CENTER_LON
 
-# Радиус Земли на широте Москвы
+# Радиус Земли на широте Москвыx
 EARTH_R = 6363568
 
 # скорость ходьбы в метрах
@@ -352,14 +353,9 @@ def calculate_workload(center_mass_pd, distance_matrix_pd):
     return quantity_people_to_postomat, distance_till_nearest_postomat
 
 
-def parse_list_possidble_points(possible_points: List[str] = Query(None)) -> Optional[List]:
-    """
-    accepts strings formatted as lists with square brackets
-    names can be in the format
-    "[bob,jeff,greg]" or '["bob","jeff","greg"]'
-    """
 
-    names = possible_points
+def parse_inside(names):
+
     if names is None:
         return
 
@@ -378,6 +374,18 @@ def parse_list_possidble_points(possible_points: List[str] = Query(None)) -> Opt
     names_list = flat_names.split(",")
     names_list = [remove_prefix(n.strip(), "\"") for n in names_list]
     names_list = [remove_postfix(n.strip(), "\"") for n in names_list]
+    return names_list
+
+
+
+def parse_object_type_filter_list(possible_points: List[str] = Query(None)) -> Optional[List]:
+    """
+    accepts strings formatted as lists with square brackets
+    names can be in the format
+    "[bob,jeff,greg]" or '["bob","jeff","greg"]'
+    """
+
+    names_list = parse_inside(possible_points)
 
     return names_list
 
@@ -387,24 +395,72 @@ def parse_list_fixed_points(fixed_points: List[str] = Query(None)) -> Optional[L
     names can be in the format
     "[bob,jeff,greg]" or '["bob","jeff","greg"]'
     """
-    names = fixed_points
-    if names is None:
-        return
 
-    # we already have a list, we can return
-    if len(names) > 1:
-        return names
-
-    # if we don't start with a "[" and end with "]" it's just a normal entry
-    flat_names = names[0]
-    if not flat_names.startswith("[") and not flat_names.endswith("]"):
-        return names
-
-    flat_names = remove_prefix(flat_names, "[")
-    flat_names = remove_postfix(flat_names, "]")
-
-    names_list = flat_names.split(",")
-    names_list = [remove_prefix(n.strip(), "\"") for n in names_list]
-    names_list = [remove_postfix(n.strip(), "\"") for n in names_list]
+    names_list = parse_inside(fixed_points)
 
     return names_list
+
+
+def parse_object_type_filter_list(object_type_filter_list: List[str] = Query(None)) -> Optional[List]:
+    """
+    accepts strings formatted as lists with square brackets
+    names can be in the format
+    "[bob,jeff,greg]" or '["bob","jeff","greg"]'
+    """
+
+    names_list = parse_inside(object_type_filter_list)
+
+    return names_list
+
+
+def parse_district_type_filter_list(district_type_filter_list: List[str] = Query(None)) -> Optional[List]:
+    """
+    accepts strings formatted as lists with square brackets
+    names can be in the format
+    "[bob,jeff,greg]" or '["bob","jeff","greg"]'
+    """
+
+    names_list = parse_inside(district_type_filter_list)
+
+    return names_list
+
+
+def parse_adm_areat_type_filter_list(adm_areat_type_filter_list: List[str] = Query(None)) -> Optional[List]:
+    """
+    accepts strings formatted as lists with square brackets
+    names can be in the format
+    "[bob,jeff,greg]" or '["bob","jeff","greg"]'
+    """
+
+
+    names_list = parse_inside(adm_areat_type_filter_list)
+
+    return names_list
+
+def parse_banned_points_list(banned_points: List[str] = Query(None)) -> Optional[List]:
+    """
+    accepts strings formatted as lists with square brackets
+    names can be in the format
+    "[bob,jeff,greg]" or '["bob","jeff","greg"]'
+    """
+
+    names_list = parse_inside(banned_points)
+
+    return names_list
+def add_quates(obj_list):
+    return ["'" + str(s) + "'" for s in obj_list]
+
+def make_points_lists(db,
+                      object_type_filter_list,
+                      district_type_filter_list,
+                      adm_areat_type_filter_list,
+                      banned_points):
+    
+    objects = db.get_by_filter("all_objects_data", {"object_type": add_quates(object_type_filter_list),
+                                                    "district": add_quates(district_type_filter_list),
+                                                    "adm_area": add_quates(adm_areat_type_filter_list)
+                                                 })
+
+    possible_postomats = list(set(objects['object_id'].to_list()).difference(set(banned_points)))
+    return possible_postomats
+    

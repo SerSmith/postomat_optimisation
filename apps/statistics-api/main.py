@@ -56,8 +56,6 @@ def get_optimized_postomat_places(possible_points: List[str] = Depends(parse_lis
     #return fixed_points
 
 
-
-
 @app.get("/get_point_statistics")
 def find_heat_map(step: float = 1, walk_time: float = 15, object_id_str: List[str] = Depends(parse_list_object_id)):
 

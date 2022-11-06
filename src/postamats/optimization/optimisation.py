@@ -21,7 +21,7 @@ def optimize_by_solver(population_points,
                        quantity_postamats_to_place,
                        metro_weight,
                        population_dict,
-                       precalculated_points = None,
+                       precalculated_points=None,
                        **kwargs):
 
     postomat_places = list(fixed_points) + list(possible_postomats)
@@ -35,7 +35,7 @@ def optimize_by_solver(population_points,
     # Переменные
     model.has_postomat = pyo.Var(postomat_places, within=pyo.Binary, initialize=0)
 
-    if precalculated_points is None:
+    if precalculated_points is not None:
         for point in precalculated_points:
             model.has_postomat[point] = 1
 
