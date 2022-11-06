@@ -4,42 +4,87 @@ import pandas as pd
 import datetime
 
 import json
-from connections import DB
 
 
-def optimisatin(fixed_points, possible_postomats):
 
-    CONFIG_PATH = "/Users/sykuznetsov/Desktop/db_config.json"
+def get_chosen_postomats(model):
+    solution_dict = model.has_postomat.extract_values()
+    solution_pd = pd.DataFrame(solution_dict.items(), columns=['object_id', 'place_postomat'])
+    return solution_pd.loc[solution_pd['place_postomat'] > 0, 'object_id'].to_list()
 
-    with open(CONFIG_PATH) as f:
-        db_config = json.load(f)
+def optimize_by_solver(population_points,
+                       possible_postomats,
+                       fixed_points,
+                       object_id_metro_list,
+                       distances,
+                       distanses_metro,
+                       quantity_postamats_to_place,
+                       metro_weight,
+                       population_dict,
+                       precalculated_points = None,
+                       **kwargs):
 
-    db = DB(db_config)
- 
-    population_points_pd = db.get_by_filter("tst_center_mass_29102022", {"step": 1})
-    POPULATION_POINTS = population_points_pd["object_id"].unique()
+    postomat_places = list(fixed_points) + list(possible_postomats)
 
-    POSTOMAT_PLACES = fixed_points + possible_postomats
-
-    DISTANSES = db.get_by_filter("fake_distances_matrix", {"object_id": possible_postomats})
+    distances_dict = {(id_center_mass, postomat_place_id): walk_time for _, postomat_place_id, id_center_mass , _, _, walk_time in distances.itertuples()}
+    distances_metro_dict = {(object_id_metro, object_id): walk_time for _, object_id, object_id_metro ,  _, walk_time in distanses_metro.itertuples()}
 
     # Создание конкретной модели pyomo
     model = pyo.ConcreteModel()
 
     # Переменные
-    model.has_postomat = pyo.Var(POSTOMAT_PLACES, within=pyo.Binary, initialize=0)
+    model.has_postomat = pyo.Var(postomat_places, within=pyo.Binary, initialize=0)
 
-    model.nearest_point_time = pyo.Var(POPULATION_POINTS)
+    if precalculated_points is None:
+        for point in precalculated_points:
+            model.has_postomat[point] = 1
+
+
+    for fixed_point in fixed_points:
+        model.has_postomat[fixed_point].fix(1)
+
+    model.center_mass_time_to_nearest_postamat = pyo.Var(population_points, within=pyo.NonNegativeReals)
 
     #Ограничения
 
     # Одновременно не более MAX_SIMULT_PROMO акций
-    def con_nearest_point_time(model, population_point, postomat_place):
-        return model.nearest_point_time[population_point] >= DISTANSES[population_point, postomat_place] * model.has_postomat[postomat_place]
+    def con_center_mass_time_to_nearest_postamat(model, *data):
+        _, id_center_mass, postomat_place_id = data
+        return model.center_mass_time_to_nearest_postamat[id_center_mass] >= distances_dict[(id_center_mass, postomat_place_id)] * model.has_postomat[postomat_place_id]
 
-    model.con_nearest_point_time = pyo.Constraint(POPULATION_POINTS, POSTOMAT_PLACES ,rule=con_nearest_point_time)
+    model.con_center_mass_time_to_nearest_postamat = pyo.Constraint( list(distances[['id_center_mass',	'object_id']].itertuples()) ,rule=con_center_mass_time_to_nearest_postamat)
 
+
+    model.metro_time_to_nearest_postamat = pyo.Var(object_id_metro_list, within=pyo.NonNegativeReals)
+        # Одновременно не более MAX_SIMULT_PROMO акций
+    def con_metro_time_to_nearest_postamat(model, *data):
+        _, object_id_metro, postomat_place_id = data
+        return model.metro_time_to_nearest_postamat[object_id_metro] >= distances_metro_dict[(object_id_metro, postomat_place_id)] * model.has_postomat[postomat_place_id]
+
+    model.con_metro_time_to_nearest_postamat = pyo.Constraint( list(distanses_metro[['object_id_metro',	'object_id']].itertuples()) ,rule=con_metro_time_to_nearest_postamat)
+
+
+    model.needed_postamats = pyo.Constraint(expr=sum([model.has_postomat[p] for  p in postomat_places])  >= quantity_postamats_to_place)
+
+    sum_center_mass = sum(model.center_mass_time_to_nearest_postamat[p] * population_dict[p] for p in population_points)
+    sum_metro = sum(model.metro_time_to_nearest_postamat[p] * population_dict[p] for p in object_id_metro_list)
     # # Целевая
-    model.OBJ = pyo.Objective(expr=sum(model.nearest_point_time[p] for p in POPULATION_POINTS), sense=pyo.minimize)
+    model.OBJ = pyo.Objective(expr=((1 - metro_weight) * sum_center_mass + (metro_weight) * sum_metro), sense=pyo.minimize)
+    # minimize
 
-    # opt = Solver olve(instance, logfile=SOLVE_LOG, solnfile=SOLNFILE)
+
+    opt = SolverFactory('cbc', executable="/usr/local/Cellar/cbc/2.10.8/bin/cbc")
+
+    for key in kwargs:
+        opt.options[key] = kwargs[key]
+
+    results = opt.solve(model)
+
+
+    optimised_list = get_chosen_postomats(model)
+
+    optimised_list_no_fixed = list(set(optimised_list).difference(set(fixed_points)))
+
+    return optimised_list_no_fixed, results
+
+
