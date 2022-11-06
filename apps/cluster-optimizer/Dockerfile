@@ -3,7 +3,7 @@ FROM python:3.10.6
 
 WORKDIR /code
 
-COPY apps/solver-optimiser/ /code/app
+COPY apps/cluster-optimiser/ /code/app
 COPY src/ /code/src/
 COPY requirements.txt /code/
 COPY setup.py /code/
