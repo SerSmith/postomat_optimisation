@@ -1,16 +1,19 @@
 """Вспомогательные функции
 """
-from typing import Dict, Tuple, List, Generator
+import os
+from typing import Dict, Tuple, List, Generator, Optional, Union
 import hashlib
 from warnings import warn
 from math import radians, cos, sin, asin, sqrt, pi
+import matplotlib.pyplot as plt
 from shapely.geometry import Polygon
 import numpy as np
 import pandas as pd
-from typing import Union, Optional
+
+from fastapi import FastAPI, Query, Depends
 
 from postamats.global_constants import CENTER_LAT, CENTER_LON
-from fastapi import FastAPI, Query, Depends
+from postamats.utils.connections import PATH_TO_ROOT
 
 # Радиус Земли на широте Москвы
 EARTH_R = 6363568
@@ -354,14 +357,9 @@ def calculate_workload(center_mass_pd, distance_matrix_pd):
     return quantity_people_to_postomat, distance_till_nearest_postomat
 
 
-def parse_list_possidble_points(possible_points: List[str] = Query(None)) -> Optional[List]:
-    """
-    accepts strings formatted as lists with square brackets
-    names can be in the format
-    "[bob,jeff,greg]" or '["bob","jeff","greg"]'
-    """
 
-    names = possible_points
+def parse_inside(names):
+
     if names is None:
         return
 
@@ -380,8 +378,20 @@ def parse_list_possidble_points(possible_points: List[str] = Query(None)) -> Opt
     names_list = flat_names.split(",")
     names_list = [remove_prefix(n.strip(), "\"") for n in names_list]
     names_list = [remove_postfix(n.strip(), "\"") for n in names_list]
+    return names_list
+
+
+def parse_object_type_filter_list(possible_points: List[str] = Query(None)) -> Optional[List]:
+    """
+    accepts strings formatted as lists with square brackets
+    names can be in the format
+    "[bob,jeff,greg]" or '["bob","jeff","greg"]'
+    """
+
+    names_list = parse_inside(possible_points)
 
     return names_list
+
 
 def parse_list_fixed_points(fixed_points: List[str] = Query(None)) -> Optional[List]:
     """
@@ -389,24 +399,120 @@ def parse_list_fixed_points(fixed_points: List[str] = Query(None)) -> Optional[L
     names can be in the format
     "[bob,jeff,greg]" or '["bob","jeff","greg"]'
     """
-    names = fixed_points
-    if names is None:
-        return
 
-    # we already have a list, we can return
-    if len(names) > 1:
-        return names
-
-    # if we don't start with a "[" and end with "]" it's just a normal entry
-    flat_names = names[0]
-    if not flat_names.startswith("[") and not flat_names.endswith("]"):
-        return names
-
-    flat_names = remove_prefix(flat_names, "[")
-    flat_names = remove_postfix(flat_names, "]")
-
-    names_list = flat_names.split(",")
-    names_list = [remove_prefix(n.strip(), "\"") for n in names_list]
-    names_list = [remove_postfix(n.strip(), "\"") for n in names_list]
+    names_list = parse_inside(fixed_points)
 
     return names_list
+
+
+def parse_district_type_filter_list(district_type_filter_list: List[str] = Query(None)) -> Optional[List]:
+    """
+    accepts strings formatted as lists with square brackets
+    names can be in the format
+    "[bob,jeff,greg]" or '["bob","jeff","greg"]'
+    """
+
+    names_list = parse_inside(district_type_filter_list)
+
+    return names_list
+
+
+def parse_adm_areat_type_filter_list(adm_areat_type_filter_list: List[str] = Query(None)) -> Optional[List]:
+    """
+    accepts strings formatted as lists with square brackets
+    names can be in the format
+    "[bob,jeff,greg]" or '["bob","jeff","greg"]'
+    """
+
+
+    names_list = parse_inside(adm_areat_type_filter_list)
+
+    return names_list
+
+def parse_banned_points_list(banned_points: List[str] = Query(None)) -> Optional[List]:
+    """
+    accepts strings formatted as lists with square brackets
+    names can be in the format
+    "[bob,jeff,greg]" or '["bob","jeff","greg"]'
+    """
+
+    names_list = parse_inside(banned_points)
+
+    return names_list
+def add_quates(obj_list):
+    if obj_list is not None:
+        return ["'" + str(s) + "'" for s in obj_list]
+
+def make_points_lists(db,
+                      object_type_filter_list,
+                      district_type_filter_list,
+                      adm_areat_type_filter_list,
+                      banned_points):
+    """На основе переданных фильтров формируем список точек, где могут стоят постаматы
+
+    Args:
+        db (_type_): _description_
+        object_type_filter_list (_type_): _description_
+        district_type_filter_list (_type_): _description_
+        adm_areat_type_filter_list (_type_): _description_
+        banned_points (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    
+    if object_type_filter_list is None:
+        object_type_filter_list = []
+    if district_type_filter_list is None:
+        district_type_filter_list = []
+    if adm_areat_type_filter_list is None:
+        adm_areat_type_filter_list = []
+    if banned_points is None:
+        banned_points = []
+
+    objects = db.get_by_filter("all_objects_data", {"object_type": add_quates(object_type_filter_list),
+                                                    "district": add_quates(district_type_filter_list),
+                                                    "adm_area": add_quates(adm_areat_type_filter_list)
+                                                 }, additional_filter="object_type != 'многоквартирный дом'")
+
+    possible_postomats = list(set(objects['object_id'].to_list()).difference(set(banned_points)))
+    return possible_postomats
+    
+def plot_map(
+    cartes1: pd.DataFrame,
+    cartes2: Optional[pd.DataFrame]=None,
+    size1: int=10,
+    size2: int=1,
+    alpha1: float=.2,
+    alpha2: float=1,
+    c1: Union[str, List]='b',
+    c2: Union[str, List]='r'):
+    """Печатает точки на фоне предсохраненной карты Москвы
+
+    Args:
+        cartes1 (pd.DataFrame): _description_
+        cartes2 (_type_, optional): _description_. Defaults to None.
+        size1 (int, optional): _description_. Defaults to 10.
+        size2 (int, optional): _description_. Defaults to 1.
+        alpha1 (float, optional): _description_. Defaults to .2.
+        alpha2 (int, optional): _description_. Defaults to 1.
+        c1 (str, optional): _description_. Defaults to 'b'.
+        c2 (str, optional): _description_. Defaults to 'r'.
+    """
+
+    mos_img = plt.imread(os.path.join(PATH_TO_ROOT, 'data', 'images', 'map.png'))
+
+    bbox_geo = (37.3260, 37.9193, 55.5698, 55.9119)
+    bbox_cartes = calc_cartesian_coords(bbox_geo[2:], bbox_geo[:2])
+    bbox = bbox_cartes['x'].to_list() + bbox_cartes['y'].to_list()
+
+    fig, ax = plt.subplots(figsize=(12,12))
+    ax.scatter(cartes1['x'], cartes1['y'], zorder=1, alpha=alpha1, c=c1, s=size1)
+    if cartes2 is not None:
+        ax.scatter(cartes2['x'], cartes2['y'], zorder=1, alpha=alpha2, c=c2, s=size2)
+
+    ax.set_xlim(bbox[0],bbox[1])
+    ax.set_ylim(bbox[2],bbox[3])
+    ax.axis('off')
+    ax.imshow(mos_img, zorder=0, extent=bbox, aspect='equal')
+    plt.show()

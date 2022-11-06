@@ -21,7 +21,7 @@ def optimize_by_solver(population_points,
                        quantity_postamats_to_place,
                        metro_weight,
                        population_dict,
-                       precalculated_points = None,
+                       precalculated_points=None,
                        **kwargs):
 
     postomat_places = list(fixed_points) + list(possible_postomats)
@@ -35,7 +35,7 @@ def optimize_by_solver(population_points,
     # Переменные
     model.has_postomat = pyo.Var(postomat_places, within=pyo.Binary, initialize=0)
 
-    if precalculated_points is None:
+    if precalculated_points is not None:
         for point in precalculated_points:
             model.has_postomat[point] = 1
 
@@ -64,7 +64,7 @@ def optimize_by_solver(population_points,
     model.con_metro_time_to_nearest_postamat = pyo.Constraint( list(distanses_metro[['object_id_metro',	'object_id']].itertuples()) ,rule=con_metro_time_to_nearest_postamat)
 
 
-    model.needed_postamats = pyo.Constraint(expr=sum([model.has_postomat[p] for  p in postomat_places])  >= quantity_postamats_to_place)
+    model.needed_postamats = pyo.Constraint(expr=sum([model.has_postomat[p] for  p in postomat_places])  == quantity_postamats_to_place)
 
     sum_center_mass = sum(model.center_mass_time_to_nearest_postamat[p] * population_dict[p] for p in population_points)
     sum_metro = sum(model.metro_time_to_nearest_postamat[p] * population_dict[p] for p in object_id_metro_list)
@@ -72,8 +72,8 @@ def optimize_by_solver(population_points,
     model.OBJ = pyo.Objective(expr=((1 - metro_weight) * sum_center_mass + (metro_weight) * sum_metro), sense=pyo.minimize)
     # minimize
 
-
-    opt = SolverFactory('cbc', executable="/usr/local/Cellar/cbc/2.10.8/bin/cbc")
+    # , executable="/usr/local/Cellar/cbc/2.10.8/bin/cbc"
+    opt = SolverFactory('cbc')
 
     for key in kwargs:
         opt.options[key] = kwargs[key]

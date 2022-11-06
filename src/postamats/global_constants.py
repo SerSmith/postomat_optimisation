@@ -4,6 +4,9 @@
 CENTER_LAT = 55.755864
 CENTER_LON = 37.617698
 
+# какой радиус по умолчанию обслуживает 1 установленный постамат
+MAX_ACTIVE_RADIUS = 400
+
 # названия промежуточных табличек с обработанными данными из
 # https://data.mos.ru/opendata/60562/data/table?versionNumber=3&releaseNumber=823
 # https://dom.gosuslugi.ru/#!/houses
