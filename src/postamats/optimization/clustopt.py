@@ -4,6 +4,7 @@
 import os
 import json
 from typing import Union, Tuple, List, Dict, Optional
+from warnings import warn
 import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans, DBSCAN
@@ -11,9 +12,11 @@ from sklearn.metrics import pairwise_distances
 
 from postamats.utils import connections, helpers
 from postamats.utils.connections import PATH_TO_ROOT
-from postamats.global_constants import MAX_ACTIVE_RADIUS, LATITUDE_COL, LONGITUDE_COL
+from postamats.global_constants import MAX_ACTIVE_RADIUS, LATITUDE_COL, LONGITUDE_COL,\
+    METERS_TO_SEC_COEF, MAX_POSTAMAT_AREA, MAX_ACTIVE_RADIUS
 
-MAX_POSTAMAT_AREA = np.pi * MAX_ACTIVE_RADIUS ** 2
+
+RANDOM_STATE = 27
 
 
 def calculate_weights(data: pd.DataFrame, **kwargs) -> pd.Series:
@@ -91,16 +94,23 @@ def sort_clusters_by_density(data: pd.DataFrame,
     return clusters_population_density, clusters_area, clusters_by_density
 
 
-def set_cluster_postamats(clust_df,
-                          clust_area,
+def set_cluster_postamats(clust_df: pd.DataFrame,
+                          clust_area: float,
+                          remain_postamats_quant: Optional[int]=None,
                           num_clusters_coef: int=2,
-                          dist_thresh=2*MAX_ACTIVE_RADIUS):
-    """Расставляет постаматы
+                          dist_thresh: float=2*MAX_ACTIVE_RADIUS):
+    """_summary_
 
     Args:
-        clust_df (_type_): _description_
-        clust_area (_type_): _description_
-        dist_thresh (_type_, optional): _description_. Defaults to 2*MAX_ACTIVE_RADIUS.
+        clust_df (pd.DataFrame): _description_
+        clust_area (float): _description_
+        remain_postamats_quant (Optional[int], optional): _description_. Defaults to None.
+        num_clusters_coef (int, optional): _description_. Defaults to 2.
+        dist_thresh (float, optional): Максимальное расстояние от потенциальной точки
+         размещения постамата до точки, рекомендованной оптимизатором (центра кластера),
+         при котором постамат будет поставлен в данную точку. Если расстояние от точки
+         рекомендации до точки потенциального размещения больше и других точек ближе нет,
+         то постамат, рекомендованный оптимизатором, не размещается. Defaults to 2*MAX_ACTIVE_RADIUS.
 
     Returns:
         _type_: _description_
@@ -111,10 +121,18 @@ def set_cluster_postamats(clust_df,
         return result
 
     n_clusters = num_clusters_coef * int( np.ceil(clust_area / MAX_POSTAMAT_AREA) )
+    # если осталось меньше постаматов, чем хочет оптимизатор, берем, сколько осталось
+    if remain_postamats_quant is not None:
+        # если вдруг получили 0
+        if remain_postamats_quant == 0:
+            warn('Доступные для расстановки постаматы закончились')
+            return result
+        n_clusters = min(remain_postamats_quant, n_clusters)
+
     # TODO: ставить больше кластеров и выбирать топ лучших
     # проверять, что кластеры стоят слишком близко
 
-    clusterer = KMeans(n_clusters=n_clusters)
+    clusterer = KMeans(n_clusters=n_clusters, random_state=RANDOM_STATE)
     clusterer.fit_predict(clust_df.loc[~clust_df['is_point'], ['x', 'y']])
     centers = pd.DataFrame(data=clusterer.cluster_centers_, columns=['x', 'y'])
 
@@ -134,7 +152,7 @@ def set_cluster_postamats(clust_df,
 
 def remove_or_select_nearest(remove_or_select_from: pd.DataFrame,
                             whose_neighbors_remove_or_select: pd.DataFrame,
-                            distance_threshold: float=MAX_ACTIVE_RADIUS,
+                            distance_threshold: float,
                             action: str='remove'):
     """Убирает или оставляет в remove_or_select_from точки вокруг точек из whose_neighbors_remove
     Args:
@@ -146,6 +164,23 @@ def remove_or_select_nearest(remove_or_select_from: pd.DataFrame,
     """
     if action not in ['remove', 'select']:
         raise ValueError(f"action must be 'remove' or 'select', {action} received")
+
+    if remove_or_select_from.shape[0]==0:
+        warn('remove_or_select_from пуст')
+        return remove_or_select_from
+
+    if whose_neighbors_remove_or_select.shape[0]==0:
+        warn_base_msg = 'whose_neighbors_remove_or_select пуст'
+        if action=='remove':
+            warn(f'{warn_base_msg}, {action}=remove,'
+            ' удалять нечего, возвращаю remove_or_select_from as is')
+            return remove_or_select_from
+        if action=='select':
+            warn(f'{warn_base_msg}, {action}=select,'
+            'возвращать нечего, возвращаю пустой датасет')
+            return pd.DataFrame(columns=remove_or_select_from.column)
+
+        return remove_or_select_from
 
     dist = pairwise_distances(remove_or_select_from[['x', 'y']],
                               whose_neighbors_remove_or_select[['x', 'y']])
@@ -181,9 +216,10 @@ def get_data_from_db(
 
 def kmeans_optimize_points(possible_points: List[str],
                            fixed_points: List[str],
-                           postamat_quant: int,
-                           metro_importance: Optional[float]=None,
-                           large_houses_priority: Optional[float]=None,
+                           quantity_postamats_to_place: int,
+                           max_time: float=15,
+                           metro_weight: float=0.5,
+                           large_houses_priority: float=0.5,
                            is_local_run: bool=False) -> List[str]:
     """_summary_
 
@@ -198,6 +234,21 @@ def kmeans_optimize_points(possible_points: List[str],
     Returns:
         List[str]: _description_
     """
+
+    if not possible_points:
+        warn('Не получено ни одной точки для размещения постамата, возвращаю пустой список')
+        return []
+
+    if quantity_postamats_to_place<=0:
+        warn(f'Нельзя разместить {quantity_postamats_to_place} постаматов, возвращаю пустой список')
+        return []
+
+    if metro_weight < 0:
+        raise ValueError('metro_weight не может быть отрицательным')
+
+    if large_houses_priority < 0:
+        raise ValueError('large_houses_priority не может быть отрицательным')
+
     db_config = None
 
     if is_local_run:
@@ -227,13 +278,14 @@ def kmeans_optimize_points(possible_points: List[str],
 
     # фильтруем данные о зификсированных точках
     # удаляем из расчета те дома, которые уже обслуживаются постаматом
-    cleaned_apart = remove_or_select_nearest(all_apart, fixed_points_df)
+    cleaned_apart = remove_or_select_nearest(all_apart, fixed_points_df, MAX_ACTIVE_RADIUS)
     # Постаматы имеют эффективный радиус действия, оставляем только те дома,
     # которые находятся в границах эффективного радиуса действия постаматов
-    # радиус берем с запасом 400 * 3 = 1200 м
+    # рассчитываем исходя из max_time
+    postamat_effective_radius = 60 * max_time / METERS_TO_SEC_COEF
     cleaned_apart = remove_or_select_nearest(cleaned_apart,
                                              cleaned_points,
-                                             distance_threshold=3*MAX_ACTIVE_RADIUS,
+                                             distance_threshold=postamat_effective_radius,
                                              action='select')
 
     # добавляем точки в датасет, чтобы понимать, находятся они в нашей области или нет
@@ -243,7 +295,7 @@ def kmeans_optimize_points(possible_points: List[str],
     # добавляем вес
     # TODO: добавить расчет весов
     sample_weight = calculate_weights(apart_vs_points,
-                                      metro_importance=metro_importance,
+                                      metro_weight=metro_weight,
                                       large_houses_priority=large_houses_priority)
     sample_weight[apart_vs_points['is_point']] = 0
 
@@ -258,7 +310,7 @@ def kmeans_optimize_points(possible_points: List[str],
         sort_clusters_by_density(apart_wo_points)
 
     point_ids = []
-    remain_postamats_quant = postamat_quant
+    remain_postamats_quant = quantity_postamats_to_place
     for lbl in clusters_by_density:
         new_ids = []
         if remain_postamats_quant <= 0:
@@ -266,7 +318,10 @@ def kmeans_optimize_points(possible_points: List[str],
         lbl_cond = apart_vs_points['label']==lbl
         new_ids = set_cluster_postamats(apart_vs_points[lbl_cond],
                                         clusters_area[lbl],
-                                        remain_postamats_quant)
+                                        remain_postamats_quant=remain_postamats_quant,
+                                        num_clusters_coef=2,
+                                        dist_thresh=2*MAX_ACTIVE_RADIUS
+                                        )
         point_ids += new_ids
         remain_postamats_quant -= len(new_ids)
     return point_ids
