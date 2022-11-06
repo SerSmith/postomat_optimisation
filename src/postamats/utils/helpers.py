@@ -318,7 +318,7 @@ def remove_postfix(text: str, postfix: str):
         text = text[:-len(postfix)]
     return text
 
-def parse_list_object_id(list_object_id: List[str] = Query(None)) -> Optional[List]:
+def parse_list_object_id(list_object_id: List[str] = Query(None, description='Список постоматов, для которых считаем характеристики')) -> Optional[List]:
     """
     accepts strings formatted as lists with square brackets
     names can be in the format

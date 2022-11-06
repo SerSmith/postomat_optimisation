@@ -48,7 +48,6 @@ def optimize_by_solver(population_points,
 
     #Ограничения
 
-    # Одновременно не более MAX_SIMULT_PROMO акций
     def con_center_mass_time_to_nearest_postamat(model, *data):
         _, id_center_mass, postomat_place_id = data
         return model.center_mass_time_to_nearest_postamat[id_center_mass] >= distances_dict[(id_center_mass, postomat_place_id)] * model.has_postomat[postomat_place_id] + BIG_NUM * (1-model.has_postomat[postomat_place_id])
@@ -57,7 +56,7 @@ def optimize_by_solver(population_points,
 
 
     model.metro_time_to_nearest_postamat = pyo.Var(object_id_metro_list, within=pyo.NonNegativeReals)
-        # Одновременно не более MAX_SIMULT_PROMO акций
+
     def con_metro_time_to_nearest_postamat(model, *data):
         _, object_id_metro, postomat_place_id = data
         return model.metro_time_to_nearest_postamat[object_id_metro] >= distances_metro_dict[(object_id_metro, postomat_place_id)] * model.has_postomat[postomat_place_id]+ BIG_NUM * (1-model.has_postomat[postomat_place_id])
