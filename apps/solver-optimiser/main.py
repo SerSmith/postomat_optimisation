@@ -1,3 +1,4 @@
+import uvicorn
 from typing import List
 import json
 
@@ -5,7 +6,7 @@ from postamats.utils import connections
 from postamats.optimization import optimisation
 import postamats.utils.helpers as h
 
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="solverop",
@@ -32,7 +33,7 @@ def get_optimized_postomat_places(object_type_filter_list: List[str] = Depends(h
                                   adm_areat_type_filter_list: List[str] = Depends(h.parse_adm_areat_type_filter_list),
                                   fixed_points: List[str] = Depends(h.parse_list_fixed_points),
                                   banned_points: List[str] = Depends(h.parse_banned_points_list),
-                                  quantity_postamats_to_place:int =1500,
+                                  quantity_postamats_to_place:int =Query(1500, description="Количество постаматов "),
                                   step:float =0.5,
                                   metro_weight:float =0.5,
                                   opt_time:int =250,
@@ -102,15 +103,15 @@ def get_optimized_postomat_places(object_type_filter_list: List[str] = Depends(h
 
 
 if __name__ == "__main__":
-
-    res = get_optimized_postomat_places(object_type_filter_list=[],
-                                        district_type_filter_list=[],
-                                        adm_areat_type_filter_list=[],
-                                        fixed_points=[],
-                                        banned_points=[],
-                                        quantity_postamats_to_place=1500,
-                                        step=0.1,
-                                        metro_weight=0.5,
-                                        opt_time=250,
-                                        max_time=15
-                                        )
+    uvicorn.run(app, host="0.0.0.0", port=8000, h11_max_incomplete_event_size=1640000)
+    # res = get_optimized_postomat_places(object_type_filter_list=[],
+    #                                     district_type_filter_list=[],
+    #                                     adm_areat_type_filter_list=[],
+    #                                     fixed_points=[],
+    #                                     banned_points=[],
+    #                                     quantity_postamats_to_place=1500,
+    #                                     step=0.1,
+    #                                     metro_weight=0.5,
+    #                                     opt_time=250,
+    #                                     max_time=15
+    #                                     )
