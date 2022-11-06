@@ -141,3 +141,9 @@ db_config.json
 
 apps/mapoptim/node_modules/*
 apps/mapoptim/.angular/*
+
+# карту оставляем для возможности отрисовки в Notebooks/researches/k_means_optimizer.ipynb
+!data/images/map.png
+
+# тестовый файл, создается сам при запуске Notebooks/researches/k_means_optimizer.ipynb
+Notebooks/researches/json_input.json

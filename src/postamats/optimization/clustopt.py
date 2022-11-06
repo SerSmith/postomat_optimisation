@@ -165,6 +165,23 @@ def remove_or_select_nearest(remove_or_select_from: pd.DataFrame,
     if action not in ['remove', 'select']:
         raise ValueError(f"action must be 'remove' or 'select', {action} received")
 
+    if remove_or_select_from.shape[0]==0:
+        warn('remove_or_select_from пуст')
+        return remove_or_select_from
+
+    if whose_neighbors_remove_or_select.shape[0]==0:
+        warn_base_msg = 'whose_neighbors_remove_or_select пуст'
+        if action=='remove':
+            warn(f'{warn_base_msg}, {action}=remove,'
+            ' удалять нечего, возвращаю remove_or_select_from as is')
+            return remove_or_select_from
+        if action=='select':
+            warn(f'{warn_base_msg}, {action}=select,'
+            'возвращать нечего, возвращаю пустой датасет')
+            return pd.DataFrame(columns=remove_or_select_from.column)
+
+        return remove_or_select_from
+
     dist = pairwise_distances(remove_or_select_from[['x', 'y']],
                               whose_neighbors_remove_or_select[['x', 'y']])
     to_remove_or_select = set( np.where(dist < distance_threshold)[0] )
@@ -217,6 +234,20 @@ def kmeans_optimize_points(possible_points: List[str],
     Returns:
         List[str]: _description_
     """
+    if not possible_points:
+        warn('Не получено ни одной точки для размещения постамата, возвращаю пустой список')
+        return []
+
+    if quantity_postamats_to_place<=0:
+        warn(f'Нельзя разместить {quantity_postamats_to_place} постаматов, возвращаю пустой список')
+        return []
+
+    if metro_weight < 0:
+        raise ValueError('metro_weight не может быть отрицательным')
+
+    if large_houses_priority < 0:
+        raise ValueError('large_houses_priority не может быть отрицательным')
+
     db_config = None
 
     if is_local_run:
