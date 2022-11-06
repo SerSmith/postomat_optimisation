@@ -386,7 +386,7 @@ def parse_inside(names):
     return names_list
 
 
-def parse_object_type_filter_list(object_type_filter: List[str] = Query(None, description="Список типов обектов размещения: киоск, ")) -> Optional[List]:
+def parse_object_type_filter_list(object_type_filter: List[str] = Query(None, description="Список типов обектов размещения: 'киоск', 'cпортивный объект', 'библиотека', 'МФЦ', 'дом культуры или клуб' ...")) -> Optional[List]:
     """
     accepts strings formatted as lists with square brackets
     names can be in the format
@@ -398,7 +398,8 @@ def parse_object_type_filter_list(object_type_filter: List[str] = Query(None, de
     return names_list
 
 
-def parse_list_fixed_points(fixed_points: List[str] = Query(None, description="Список пос")) -> Optional[List]:
+def parse_list_fixed_points(fixed_points: List[str] = Query(None, description="Список точек, где постамат уже стоит")) -> Optional[List]:
+
     """
     accepts strings formatted as lists with square brackets
     names can be in the format
@@ -410,7 +411,7 @@ def parse_list_fixed_points(fixed_points: List[str] = Query(None, description="�
     return names_list
 
 
-def parse_district_type_filter_list(district_type_filter_list: List[str] = Query(None)) -> Optional[List]:
+def parse_district_type_filter_list(district_type_filter_list: List[str] = Query(None, description="Список райнов размещения:  'район Отрадное', 'район Ивановское'...")) -> Optional[List]:
     """
     accepts strings formatted as lists with square brackets
     names can be in the format
@@ -422,7 +423,7 @@ def parse_district_type_filter_list(district_type_filter_list: List[str] = Query
     return names_list
 
 
-def parse_adm_areat_type_filter_list(adm_areat_type_filter_list: List[str] = Query(None)) -> Optional[List]:
+def parse_adm_areat_type_filter_list(adm_areat_type_filter_list: List[str] = Query(None, description="Список округов:   'Северо-Восточный административный округ','Северо-Западный административный округ'...")) -> Optional[List]:
     """
     accepts strings formatted as lists with square brackets
     names can be in the format
@@ -434,7 +435,7 @@ def parse_adm_areat_type_filter_list(adm_areat_type_filter_list: List[str] = Que
 
     return names_list
 
-def parse_banned_points_list(banned_points: List[str] = Query(None)) -> Optional[List]:
+def parse_banned_points_list(banned_points: List[str] = Query(None, description='Список точек, в которые запрещено ставить постов.')) -> Optional[List]:
     """
     accepts strings formatted as lists with square brackets
     names can be in the format
@@ -449,7 +450,7 @@ def add_quates(obj_list):
         return ["'" + str(s) + "'" for s in obj_list]
 
 
-def parse_list_possidble_points(list_possidble_points: List[str] = Query(None)) -> Optional[List]:
+def parse_list_possidble_points(list_possidble_points: List[str] = Query(None, description='Список точек,')) -> Optional[List]:
     """
     accepts strings formatted as lists with square brackets
     names can be in the format
