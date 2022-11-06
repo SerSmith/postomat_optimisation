@@ -398,7 +398,7 @@ def parse_object_type_filter_list(object_type_filter: List[str] = Query(None, de
     return names_list
 
 
-def parse_list_fixed_points(fixed_points: List[str] = Query(None, description="Список пос"))) -> Optional[List]:
+def parse_list_fixed_points(fixed_points: List[str] = Query(None, description="Список пос")) -> Optional[List]:
     """
     accepts strings formatted as lists with square brackets
     names can be in the format
