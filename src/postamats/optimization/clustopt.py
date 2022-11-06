@@ -65,6 +65,11 @@ def calculate_weights(data: pd.DataFrame,
         helpers.weigh_population,
         args=(correct_alpha(ALPHA_POPULATION, large_houses_priority), SHIFT_POPULATION))
 
+    if 'is_metro' in data.columns:
+        sample_weight[data['is_metro']] = sample_weight[data['is_metro']].apply(
+            lambda x: correct_alpha(x, metro_weight)
+            )
+
     return sample_weight.fillna(0)
 
 
@@ -254,7 +259,7 @@ def get_data_from_db(
 
     apart_query = """select object_id, lat, lon, object_type, population
     from public.apartment_houses_all_data"""
-    metro_query = """select object_id_metro, lat, lon, object_type
+    metro_query = """select object_id_metro, lat, lon, object_type, population
     from public.all_metro_objects_data where object_type='кластер входов в метро'"""
     points_query = 'select object_id, lat, lon, object_type from public.all_objects_data'
 
@@ -308,6 +313,11 @@ def kmeans_optimize_points(possible_points: List[str],
             db_config = json.load(db_file)
 
     all_apart, all_metro, all_points = get_data_from_db(db_config)
+
+    all_metro = all_metro.rename(columns={'object_id_metro': 'object_id'})
+
+    all_apart_metro = pd.concat([all_apart,all_metro])
+    all_apart_metro['is_metro'] = all_apart_metro['object_id'].isin(all_metro['object_id'])
 
     # считаем картезиановы координаты
     all_apart_cartes = helpers.calc_cartesian_coords(all_apart[LATITUDE_COL],
