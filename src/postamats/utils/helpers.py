@@ -256,3 +256,155 @@ def df_generator(df: pd.DataFrame, max_size: int) -> Generator:
     step = int(np.ceil(df.shape[0] / max_size))
     df_slices = (df.iloc[i * max_size : (i + 1) * max_size, :].copy() for i in range(step))
     return df_slices
+
+
+def step_algorithm(distance_matrix_filter, center_mass_pd, list_object_id, population):
+    " Функция для шага жадного алгоритма "
+    only_nearest_points_min_dist = distance_matrix_filter.loc[distance_matrix_filter.groupby('id_center_mass').walk_time.idxmin()]
+    only_nearest_points_min_dist_with_pop = only_nearest_points_min_dist.merge(center_mass_pd, on='id_center_mass')
+    quantity_people_to_postomat = only_nearest_points_min_dist_with_pop.groupby('object_id').agg({'population': 'sum'}).reset_index()
+    object_id = quantity_people_to_postomat.loc[quantity_people_to_postomat.population.idxmax()]['object_id']
+    list_object_id.append(object_id)
+    population_step = center_mass_pd[center_mass_pd.id_center_mass.isin(list(distance_matrix_filter[distance_matrix_filter.object_id==object_id].id_center_mass))].population.sum()
+    population =  population + population_step
+    distance_matrix_filter = distance_matrix_filter[~distance_matrix_filter.id_center_mass.isin(list(distance_matrix_filter[distance_matrix_filter.object_id==object_id].id_center_mass))]
+    print(quantity_people_to_postomat.loc[quantity_people_to_postomat.population.idxmax()]['population'], object_id)
+    return distance_matrix_filter, list_object_id, population
+
+
+def greedy_algo(db, list_possible_postomat, step=1, time=15*60, cnt_postomat = 1500):
+    """
+    Жадный алгоритм для нахождения оптимальных мест для постановки постаматов
+    Args:
+        list_possible_postomat (list): список возможных мест для постановки постаматов
+        step (float)
+        time (float) - максимальное время для шаговой доступности до постамата
+        cnt_postomat (int) - максимальное количество постоматов, которое можно поставить
+        db - коннекшен к БД
+
+    Return:
+        list_object_id (list) - набор id, куда мы ставим постоматы
+        population (int) - количество населения, которое мы покрываем расставленными постоматами
+
+    """
+    center_mass_pd = db.get_by_filter('centers_mass', filter_dict={"step":[step]})
+    object_id_str = ["'" + str(s) + "'" for s in list_possible_postomat]
+    distance_matrix_filter= db.get_by_filter("distances_matrix_filter", filter_dict = {"step": [step], "object_id": object_id_str}, additional_filter=f' walk_time<{time}')
+    list_object_id = []
+    population = 0
+    #start = datetime.datetime.now()
+    while (distance_matrix_filter.shape[0]>0) & (len(list_object_id)<cnt_postomat):
+        distance_matrix_filter, list_object_id, population = step_algorithm(distance_matrix_filter, center_mass_pd, list_object_id, population)
+    #end = datetime.datetime.now()
+    #print(end-start)
+    return list_object_id, population  
+
+
+def remove_prefix(text: str, prefix: str):
+    return text[text.startswith(prefix) and len(prefix):]
+
+def remove_postfix(text: str, postfix: str):
+    if text.endswith(postfix):
+        text = text[:-len(postfix)]
+    return text
+
+def parse_list_object_id(list_object_id: List[str] = Query(None)) -> Optional[List]:
+    """
+    accepts strings formatted as lists with square brackets
+    names can be in the format
+    "[bob,jeff,greg]" or '["bob","jeff","greg"]'
+    """
+
+    names = list_object_id
+
+    if names is None:
+        return
+
+    # we already have a list, we can return
+    if len(names) > 1:
+        return names
+
+    # if we don't start with a "[" and end with "]" it's just a normal entry
+    flat_names = names[0]
+    if not flat_names.startswith("[") and not flat_names.endswith("]"):
+        return names
+
+    flat_names = remove_prefix(flat_names, "[")
+    flat_names = remove_postfix(flat_names, "]")
+
+    names_list = flat_names.split(",")
+    names_list = [remove_prefix(n.strip(), "\"") for n in names_list]
+    names_list = [remove_postfix(n.strip(), "\"") for n in names_list]
+
+    return names_list
+
+def calculate_workload(center_mass_pd, distance_matrix_pd):
+
+    only_nearest_points_min_dist = distance_matrix_pd.loc[distance_matrix_pd.groupby('id_center_mass').walk_time.idxmin()]
+
+    only_nearest_points_min_dist_with_pop = only_nearest_points_min_dist.merge(center_mass_pd, on='id_center_mass')
+
+    quantity_people_to_postomat = only_nearest_points_min_dist_with_pop.groupby('object_id').agg({'population': 'sum'}).reset_index()
+
+    distance_till_nearest_postomat = only_nearest_points_min_dist_with_pop[['id_center_mass', 'walk_time','lat','lon']]
+
+
+    return quantity_people_to_postomat, distance_till_nearest_postomat
+
+
+def parse_list_possidble_points(possible_points: List[str] = Query(None)) -> Optional[List]:
+    """
+    accepts strings formatted as lists with square brackets
+    names can be in the format
+    "[bob,jeff,greg]" or '["bob","jeff","greg"]'
+    """
+
+    names = possible_points
+    if names is None:
+        return
+
+    # we already have a list, we can return
+    if len(names) > 1:
+        return names
+
+    # if we don't start with a "[" and end with "]" it's just a normal entry
+    flat_names = names[0]
+    if not flat_names.startswith("[") and not flat_names.endswith("]"):
+        return names
+
+    flat_names = remove_prefix(flat_names, "[")
+    flat_names = remove_postfix(flat_names, "]")
+
+    names_list = flat_names.split(",")
+    names_list = [remove_prefix(n.strip(), "\"") for n in names_list]
+    names_list = [remove_postfix(n.strip(), "\"") for n in names_list]
+
+    return names_list
+
+def parse_list_fixed_points(fixed_points: List[str] = Query(None)) -> Optional[List]:
+    """
+    accepts strings formatted as lists with square brackets
+    names can be in the format
+    "[bob,jeff,greg]" or '["bob","jeff","greg"]'
+    """
+    names = fixed_points
+    if names is None:
+        return
+
+    # we already have a list, we can return
+    if len(names) > 1:
+        return names
+
+    # if we don't start with a "[" and end with "]" it's just a normal entry
+    flat_names = names[0]
+    if not flat_names.startswith("[") and not flat_names.endswith("]"):
+        return names
+
+    flat_names = remove_prefix(flat_names, "[")
+    flat_names = remove_postfix(flat_names, "]")
+
+    names_list = flat_names.split(",")
+    names_list = [remove_prefix(n.strip(), "\"") for n in names_list]
+    names_list = [remove_postfix(n.strip(), "\"") for n in names_list]
+
+    return names_list
