@@ -23,5 +23,8 @@
   margin: 6px 0;
 }
 .input-t{
-  width: 150px;
+  width: 140px;
+  background-color: white;
+  border: 0 white solid;
+  border-bottom: 2px black solid;
 }

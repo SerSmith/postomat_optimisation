@@ -1,17 +1,19 @@
-import {AfterViewInit, Component} from '@angular/core';
 import * as L from 'leaflet';
+import { Map, MapOptions, MarkerClusterGroup, MarkerClusterGroupOptions } from 'leaflet';
+import 'leaflet.markercluster';
+import {AfterViewInit, Component} from '@angular/core';
 import {MarkerService} from '../marker.service';
 import 'leaflet.heat/dist/leaflet-heat.js'
-import 'leaflet.markercluster';
+
 import {OptimizationService} from "../optimization.service";
 import {MapPointsService} from "../map-points.service";
 
-const iconUrlGrey = 'assets/grey.png';
-const iconUrlGreen = 'assets/green.png';
-const iconUrlRed = 'assets/red.png';
-const iconUrlBlue = 'assets/blue.png';
-const iconRetinaUrl = 'assets/img.png';
-const iconUrl = 'assets/img.png'
+const iconUrlGrey = '../../assets/grey.png';
+const iconUrlGreen = '../../assets/green.png';
+const iconUrlRed = '../../assets/red.png';
+const iconUrlBlue = '../../assets/blue.png';
+const iconRetinaUrl = '../../assets/img.png';
+const iconUrl = '../../assets/img.png'
 const iconDefault = L.icon({
   iconRetinaUrl,
   iconUrl,
@@ -38,25 +40,33 @@ export class MapComponent implements AfterViewInit {
   public markers: any;
   public showedInfo: boolean = false;
   public selectedPoint: any;
+  public saveLink: string = '';
   public parametersList: any;
+  public loader: boolean = false;
 
   public recommPoints: any = [];
   public recommIds: any = [];
 
   public banPoints: any = [];
   public banIds: any = [];
+  public heat: any;
+  public optType: string = '';
 
   public fixedPoints: any = [];
   public fixedIds: any = [];
+  public heatmap: any;
+  public currentRadius: any;
+  public r: any;
 
   private initMap(): void {
     this.map = L.map('map', {
       center: [55.755864, 37.617698],
       zoom: 11
     });
+    this.currentRadius = this.getRadius(11);
     const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18,
-      minZoom: 7,
+      minZoom: 10,
       attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     });
     tiles.addTo(this.map);
@@ -71,8 +81,9 @@ export class MapComponent implements AfterViewInit {
           this.t = JSON.parse(fields);
           this.pointsMap.set(this.t);
           this.mapGroup(this.map, this.t);
-        })
+        });
     }
+    this.setSaveLink();
   }
 
   ngAfterViewInit(): void {
@@ -81,36 +92,86 @@ export class MapComponent implements AfterViewInit {
       this.t = this.pointsMap.get();
       this.mapGroup(this.map, this.t);
     }
+    this.map.on('zoomstart', (ev: any) => {
+      this.currentRadius = this.getRadius(ev.target._zoom);
+    });
   }
 
   public showFilters(): void {
     this.filtersShowed = !this.filtersShowed;
   }
 
-  onMapReady(point: any) {
+  onMapReady(point: any, radius: any) {
     let heatPoint = new Array;
     point.forEach((el: any) => {
       let option = this.setOptHeatMap(el.walk_time);
       heatPoint.push([el.lat, el.lon, option])
     })
-    const heat = (L as any).heatLayer(heatPoint, {radius: 30, opacity:0.1}).addTo(this.map);
+    if (this.heat) {
+      this.map.removeLayer(this.heat);
+    }
+    this.heat = (L as any).heatLayer(heatPoint, {radius: 16, minOpacity: 0.1}).addTo(this.map);
+  }
+
+  public getRadius(currentZoom: any): any {
+    var radius;
+    if (currentZoom === 18) {
+      radius = 200
+    } else if (currentZoom === 17) {
+      radius = 170;
+    } else if (currentZoom === 16) {
+      radius = 140;
+    } else if (currentZoom === 15) {
+      radius = 110;
+    } else if (currentZoom === 14) {
+      radius = 100;
+    } else if (currentZoom === 13) {
+      radius = 90;
+    } else if (currentZoom === 12) {
+      radius = 30;
+    } else if (currentZoom === 11) {
+      radius = 16;
+    } else if (currentZoom === 10) {
+      radius = 12;
+    } else if (currentZoom === 9) {
+      radius = 10;
+    } else if (currentZoom === 8) {
+      radius = 8;
+    } else if (currentZoom === 7) {
+      radius = 4;
+    }
+    if (this.r) {
+      this.onMapReady(this.r, radius);
+    }
+    return radius;
   }
 
   public applyFilters(filters: any): void {
     let filteredPoints = this.t;
-    if (filters.onlyRecommed) {
+    if (filters.onlyRecommed || filters.onlyBan || filters.onlyDop || filters.onlyFix) {
       filteredPoints = [];
-      filteredPoints = (this.t.filter((el: any) => el.type === 'recom'));
+      if (filters.onlyRecommed) {
+        this.recommPoints.forEach((el: any) => {
+          filteredPoints.push(el);
+        })
+      }
+      if (filters.onlyBan) {
+        this.banPoints.forEach((el: any) => {
+          filteredPoints.push(el);
+        })
+      }
+      if (filters.onlyFix) {
+        this.fixedPoints.forEach((el: any) => {
+          filteredPoints.push(el);
+        })
+      }
+      if (filters.onlyDop) {
+        this.t.forEach((el: any) => {
+          if (el.type !== 'Рекомендованная' && el.type !== 'Фиксированная' && el.type !== 'Запрещенная')
+            filteredPoints.push(el);
+        })
+      }
     }
-    // if (filters.onlyRecommed) {
-    //   filteredPoints.push(this.t.filter((el: any) => el.type === 'recom'));
-    // }
-    // if (filters.onlyRecommed) {
-    //   filteredPoints.push(this.t.filter((el: any) => el.type === 'recom'));
-    // }
-    // if (filters.onlyRecommed) {
-    //   filteredPoints.push(this.t.filter((el: any) => el.type === 'recom'));
-    // }
     let selectedPoints = new Array;
     filteredPoints.forEach((el: any) => {
       if (filters.selectedTypes) {
@@ -165,7 +226,9 @@ export class MapComponent implements AfterViewInit {
     this.mapGroup(this.map, selectedPoints);
   }
 
-  public optFilters(filters: any): void {
+  public optFilters(event: any): void {
+    let filters = event.form;
+    this.optType = event.typeOpt.optSelect;
     if (filters.selectedTypes) {
       filters.selectedTypes = "&object_type_filter_list=" + this.arrayToString2(filters.selectedTypes);
     } else {
@@ -192,19 +255,39 @@ export class MapComponent implements AfterViewInit {
       filters.banned_points = "";
     }
 
-    this.optim.optim(filters).subscribe(rec => {
-      this.recommPoints = [];
-      this.recomm = JSON.parse(rec);
-      this.t.forEach((el: any) => {
-        if (this.recomm.optimized_points.includes(el.object_id)) {
-          el.type = 'recom';
-          this.recommPoints.push(el);
-          this.recommIds.push(el.object_id);
-        }
-      })
-      this.mapGroup(this.map, this.t);
-      this.setHeatMap();
-    });
+    if (this.optType === 'Оптимизация на основе солвера') {
+      this.optim.optim(filters).subscribe(rec => {
+        this.loader = true;
+        this.recommPoints = [];
+        this.recomm = JSON.parse(rec);
+        this.t.forEach((el: any) => {
+          if (this.recomm.optimized_points.includes(el.object_id)) {
+            el.type = 'Рекомендованная';
+            this.recommPoints.push(el);
+            this.recommIds.push(el.object_id);
+            this.loader = false;
+          }
+        })
+        this.mapGroup(this.map, this.t);
+        this.setHeatMap();
+      });
+    } else {
+      this.optim.optim2(filters).subscribe(rec => {
+        this.loader = true;
+        this.recommPoints = [];
+        this.recomm = JSON.parse(rec);
+        this.t.forEach((el: any) => {
+          if (this.recomm.optimized_points.includes(el.object_id)) {
+            el.type = 'Рекомендованная';
+            this.recommPoints.push(el);
+            this.recommIds.push(el.object_id);
+            this.loader = false;
+          }
+        })
+        this.mapGroup(this.map, this.t);
+        this.setHeatMap();
+      });
+    }
   }
 
   public resetFilters() {
@@ -215,10 +298,10 @@ export class MapComponent implements AfterViewInit {
     let stringIds = this.arrayToString(this.recommIds);
     this.optim.heatMap(stringIds)
       .subscribe(fields => {
-        let r = JSON.parse(fields[1]);
+        this.r = JSON.parse(fields[1]);
         this.parametersList = JSON.parse(fields[2]);
         this.parametersList.forEach((param: any) => param.percent_people = Math.trunc(param.percent_people))
-        this.onMapReady(r);
+        this.onMapReady(this.r, this.currentRadius);
       })
   }
 
@@ -226,7 +309,8 @@ export class MapComponent implements AfterViewInit {
     if (this.markers) {
       map.removeLayer(this.markers);
     }
-    this.markers = L.markerClusterGroup();
+    this.markers = new L.MarkerClusterGroup();
+    
     for (let i = 0; i < points.length; i++) {
       let iconUrl = this.applyIcon(points[i].type);
       let marker = L.marker(new L.LatLng(points[i].lat, points[i].lon), {
@@ -262,38 +346,63 @@ export class MapComponent implements AfterViewInit {
   }
 
   public changePointType(event: any): void {
-    switch (event.type) {
-      case 'recom':
-        this.recommPoints.push(this.t.find((el: any) => el.object_id == event.id));
-        this.recommIds.push(event.id);
-        break;
-      case 'fixed':
-        this.fixedPoints.push(this.t.find((el: any) => el.object_id == event.id));
-        this.fixedIds.push(event.id);
-        break;
-      case 'ban':
-        this.banPoints.push(this.t.find((el: any) => el.object_id == event.id));
-        this.banIds.push(event.id);
-        break;
-      default:
-        break ;
+    if (event.type !== event.prevType) {
+      switch (event.type) {
+        case 'Рекомендованная':
+          this.recommPoints.push(this.t.find((el: any) => el.object_id == event.id));
+          this.recommIds.push(event.id);
+          this.setSaveLink();
+          break;
+        case 'Фиксированная':
+          this.fixedPoints.push(this.t.find((el: any) => el.object_id == event.id));
+          this.fixedIds.push(event.id);
+          this.setSaveLink();
+          break;
+        case 'Запрещенная':
+          this.banPoints.push(this.t.find((el: any) => el.object_id == event.id));
+          this.banIds.push(event.id);
+          break;
+        default:
+          break;
+      };
+      switch (event.prevType) {
+        case 'Рекомендованная':
+          let rec = this.t.find((el: any) => el.object_id == event.id);
+          this.recommPoints.slice(this.recommPoints.indexOf(rec),1);
+          this.recommIds.slice(this.recommIds.indexOf(event.id),1);
+          this.setSaveLink();
+          break;
+        case 'Фиксированная':
+          let fix = this.t.find((el: any) => el.object_id == event.id);
+          this.fixedPoints.slice(this.fixedPoints.indexOf(fix),1);
+          this.fixedIds.slice(this.fixedIds.indexOf(event.id),1);
+          this.setSaveLink();
+          break;
+        case 'Запрещенная':
+           let ban = this.t.find((el: any) => el.object_id == event.id);
+          this.banPoints.slice(this.banPoints.indexOf(ban),1);
+          this.banIds.slice(this.fixedIds.indexOf(event.id),1);
+          break;
+        default:
+          break;
+      }
     }
-
-    console.log(this.banPoints);
+    localStorage.setItem('recommended', this.recommPoints);
+    localStorage.setItem('fixed', this.fixedPoints);
+    localStorage.setItem('banned', this.banPoints);
     this.t.find((el: any) => el.object_id == event.id).type = event.type;
     this.mapGroup(this.map, this.t);
-    console.log(this.t.find((el: any) => el.object_id == event.id));
   }
 
   private applyIcon(type: string): string {
     switch (type) {
-      case 'recom':
+      case 'Рекомендованная':
         return iconUrlGreen;
-      case 'fixed':
+      case 'Фиксированная':
         return iconUrlBlue;
-      case 'ban':
+      case 'Запрещенная':
         return iconUrlRed;
-      case 'permis':
+      case 'Допустимая':
         return iconUrlGrey;
       default:
         return iconUrlGrey;
@@ -301,22 +410,26 @@ export class MapComponent implements AfterViewInit {
   }
 
   private arrayToString(array: any): string {
-    console.log(array);
-    let stringIds = "["
-    for (let param of array) {
-      stringIds = stringIds + "'" + param + "',";
+    let stringIds = '';
+    if (array?.length) {
+      stringIds = "["
+      for (let param of array) {
+        stringIds = stringIds + "'" + param + "',";
+      }
+      stringIds = stringIds.slice(0, -1);
+      stringIds = stringIds + "]";
     }
-    stringIds = stringIds.slice(0, -1);
-    stringIds = stringIds + "]";
     return stringIds;
   }
+
   private arrayToString2(array: any): string {
-    let stringIds = "["
-    for (let param of array) {
-      stringIds = stringIds + param + ",";
-    }
-    stringIds = stringIds.slice(0, -1);
-    stringIds = stringIds + "]";
+      let stringIds = "["
+      for (let param of array) {
+        stringIds = stringIds + param + ",";
+      }
+      stringIds = stringIds.slice(0, -1);
+      stringIds = stringIds + "]";
+
     return stringIds;
   }
 
@@ -331,5 +444,32 @@ export class MapComponent implements AfterViewInit {
       return 40;
     }
     return 20;
+  }
+
+  public setSaveLink() {
+    let arr = new Array;
+    arr = [];
+    if (this.fixedIds.length) {
+      this.fixedIds.forEach((el: any) =>
+        arr.push(el)
+      )
+    }
+    if (this.recommIds.length) {
+      this.recommIds.forEach((el: any) =>
+        arr.push(el)
+      )
+    }
+    let stringArr = this.arrayToString(arr);
+    let list_object_id: string;
+    console.log(stringArr);
+    if (stringArr) {
+      list_object_id = '&list_object_id=' + stringArr;
+    } else {
+      list_object_id = ""
+    }
+    this.saveLink = 'http://178.170.195.175/get_excel?method_name=' + this.optType + '&walk_time=15&step=0.5' + list_object_id;
+  }
+  public close(){
+    this.loader = false;
   }
 }

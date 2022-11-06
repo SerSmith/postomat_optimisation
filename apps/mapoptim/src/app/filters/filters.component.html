@@ -1,21 +1,21 @@
 <button (click)="setFilter()">Фильтрация</button>
 <button (click)="setOpt()">Оптимизация</button>
 <div class="formFilters">
-<form [formGroup]="optForm" *ngIf="isOpt" (change)="changeTypeOpt()">
-  <div class="formOptim">
-    <ng-container *ngFor="let optType of optTypes">
-      <label>
-        <input
-          type="radio"
-          [value]="optType"
-          formControlName="optSelect"
-        >
-        {{ optType }}
-      </label>
-    </ng-container>
-  </div>
-</form>
-<form [formGroup]="optionsForm">
+  <form [formGroup]="optForm" *ngIf="isOpt" (change)="changeTypeOpt()">
+    <div class="formOptim">
+      <ng-container *ngFor="let optType of optTypes">
+        <label>
+          <input
+            type="radio"
+            [value]="optType"
+            formControlName="optSelect"
+          >
+          {{ optType }}
+        </label>
+      </ng-container>
+    </div>
+  </form>
+  <form [formGroup]="optionsForm">
     <div class="formFilters-section">
       <label class="formFilters-label">Тип объекта</label>
       <select formControlName="selectedTypes" multiple>
@@ -44,57 +44,56 @@
         <label for="onlyRecommed">Показать рекомендованные</label>
       </div>
       <div>
-        <input formControlName="onlyRecommed"
+        <input formControlName="onlyBan"
                type="checkbox"
-               id="onlyRecommed"
-               name="onlyRecommed"
-               value="onlyRecommed"/>
-        <label for="onlyRecommed">Показать запрещенные</label>
+               id="onlyBan"
+               name="onlyBan"
+               [value]="true"/>
+        <label for="onlyBan">Показать запрещенные</label>
       </div>
       <div>
-        <input formControlName="onlyRecommed"
+        <input formControlName="onlyDop"
                type="checkbox"
-               id="onlyRecommed"
-               name="onlyRecommed"
-               value="onlyRecommed"/>
-        <label for="onlyRecommed">Показать допустимые</label>
+               id="onlyDop"
+               name="onlyDop"
+               value="onlyDop"/>
+        <label for="onlyDop">Показать допустимые</label>
       </div>
       <div>
-        <input formControlName="onlyRecommed"
+        <input formControlName="onlyFix"
                type="checkbox"
-               id="onlyRecommed"
-               name="onlyRecommed"
-               value="onlyRecommed"/>
-        <label for="onlyRecommed">Показать фиксированные</label>
+               id="onlyFix"
+               name="onlyFix"
+               value="onlyFix"/>
+        <label for="onlyFix">Показать фиксированные</label>
       </div>
     </ng-container>
-  <ng-container *ngIf="isOpt">
-    <label >Количество постаматов:</label>
-    <input type="number" formControlName="postamatQuant" class="formFilters-counter"
-           min="10" max="5000">
-    <div>
-      <label >Важность метро</label>
-      <input formControlName="metroImportance" type="range" min="0" max="1" [step]="0.1">
-    </div>
-    <div *ngIf="this.selectedOptimization==='2'">
-      <label >Приоритет больших домов</label>
-      <input formControlName="large_houses_priority" type="range" min="0" max="1" [step]="0.1">
-    </div>
-    <div *ngIf="this.selectedOptimization==='1'">
-      <label >Предельное количество минут,что бы дойти до постомата:</label>
-      <input type="number" formControlName="max_time" class="formFilters-counter"
-             min="1" max="25">
-    </div>
-    <div *ngIf="this.selectedOptimization==='1'">
-      <label >Время работы оптимизатора в секундах:</label>
-      <input type="number" formControlName="opt_time" class="formFilters-counter"
-             min="3" max="30">
-    </div>
+    <ng-container *ngIf="isOpt">
+      <label>Количество постаматов:</label>
+      <input type="number" formControlName="postamatQuant" class="formFilters-counter"
+             min="1" max="5160">
+      <div>
+        <label>Важность метро</label>
+        <input formControlName="metroImportance" type="range" min="0" max="1" [step]="0.1">
+      </div>
+      <div *ngIf="this.selectedOptimization==='Эврестическая модель на основе kmeans'">
+        <label>Приоритет больших домов</label>
+        <input formControlName="large_houses_priority" type="range" min="0" max="1" [step]="0.1">
+      </div>
+      <div *ngIf="this.selectedOptimization==='Оптимизация на основе солвера'">
+        <label>Предельное количество минут,что бы дойти до постомата:</label>
+        <input type="number" formControlName="max_time" class="formFilters-counter"
+               min="1" max="100">
+      </div>
+      <div *ngIf="this.selectedOptimization==='Оптимизация на основе солвера'">
+        <label>Время работы оптимизатора в секундах:</label>
+        <input type="number" formControlName="opt_time" class="formFilters-counter"
+               min="50" max="1000">
+      </div>
 
-  </ng-container>
-    <button (click)="test()">применить</button>
-    <button (click)="test1()">отменить</button>
-    <button (click)="test2()" *ngIf="isOpt" [disabled]="!selectedOptimization">отптимизировать</button>
-
-</form>
+    </ng-container>
+    <button class="button-f" (click)="test()" *ngIf="isFilters">применить</button>
+    <button class="button-f" (click)="test2()" *ngIf="isOpt" [disabled]="!selectedOptimization">оптимизировать</button>
+    <button class="button-f" (click)="test1()">отменить</button>
+  </form>
 </div>
