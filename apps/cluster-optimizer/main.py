@@ -5,7 +5,8 @@ from typing import List
 from fastapi import FastAPI, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
 import postamats.utils.helpers as h
-from postamats.optimization import classtopt
+from postamats.optimization.clustopt import kmeans_optimize_points
+from postamats.utils import connections
 
 
 app = FastAPI()
@@ -27,9 +28,10 @@ def get_kmeans_optimize_points(object_type_filter_list: List[str] = Depends(h.pa
                                   banned_points: List[str] = Depends(h.parse_banned_points_list),
                                   quantity_postamats_to_place:int =Query(1500, description="Количество постаматов "),
                                   metro_weight:float =0.5,
-                                  large_houses_priority:int =0.5,
+                                  large_houses_priority:float =0.5,
                                   max_time:int =15):
 
+    db = connections.DB()
     possible_postomats = h.make_points_lists(db,
                                             object_type_filter_list,
                                             district_type_filter_list,
@@ -39,12 +41,12 @@ def get_kmeans_optimize_points(object_type_filter_list: List[str] = Depends(h.pa
     if fixed_points is None:
         fixed_points = []
 
-    optimised_list = classtopt.kmeans_optimize_points(possible_postomats,
-                                                      fixed_points,
-                                                      quantity_postamats_to_place,
-                                                      metro_weight,
-                                                      large_houses_priority,
-                                                      max_time)
+    optimised_list = kmeans_optimize_points(possible_postomats,
+                                            fixed_points,
+                                            quantity_postamats_to_place,
+                                            metro_weight,
+                                            large_houses_priority,
+                                            max_time)
 
 
     output = json.dumps({'optimized_points': optimised_list})
