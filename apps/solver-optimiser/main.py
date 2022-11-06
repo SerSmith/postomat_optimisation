@@ -32,7 +32,7 @@ def get_optimized_postomat_places(object_type_filter_list: List[str] = Depends(h
                                   adm_areat_type_filter_list: List[str] = Depends(h.parse_adm_areat_type_filter_list),
                                   fixed_points: List[str] = Depends(h.parse_list_fixed_points),
                                   banned_points: List[str] = Depends(h.parse_banned_points_list),
-                                  quantity_postamats_to_place:int =Query(1500, description="Количество постаматов, которыое необходимо поставить. (шт)"),
+                                  quantity_postamats_to_place:int =Query(1500, description="Максимальное количество постаматов, которые можно поставить. (шт)"),
                                   step:float =Query(0.1, description="Размер клетки при агрегации (км)"),
                                   metro_weight:float =Query(0.5, description="Важность близости к мето по сравнению с близостью к домам. От 0(учитывать только дома) до 1(учитывать только станции метро). (безоазмерный)"),
                                   opt_time:int =Query(200, description="Максимальное время работы солвера, если за это время не удалось найти решение отличающееся от потенциально возможного оптимума менее чем на 0.01% то выдасться лучшее имеющееся решение. (сек)"),

@@ -24,6 +24,7 @@ def optimize_by_solver(population_points,
                        precalculated_points=None,
                        **kwargs):
 
+    BIG_NUM = 40*60
     postomat_places = list(fixed_points) + list(possible_postomats)
 
     distances_dict = {(id_center_mass, postomat_place_id): walk_time for _, postomat_place_id, id_center_mass , _, _, walk_time in distances.itertuples()}
@@ -50,7 +51,7 @@ def optimize_by_solver(population_points,
     # Одновременно не более MAX_SIMULT_PROMO акций
     def con_center_mass_time_to_nearest_postamat(model, *data):
         _, id_center_mass, postomat_place_id = data
-        return model.center_mass_time_to_nearest_postamat[id_center_mass] >= distances_dict[(id_center_mass, postomat_place_id)] * model.has_postomat[postomat_place_id]
+        return model.center_mass_time_to_nearest_postamat[id_center_mass] >= distances_dict[(id_center_mass, postomat_place_id)] * model.has_postomat[postomat_place_id] + BIG_NUM * (1-model.has_postomat[postomat_place_id])
 
     model.con_center_mass_time_to_nearest_postamat = pyo.Constraint( list(distances[['id_center_mass',	'object_id']].itertuples()) ,rule=con_center_mass_time_to_nearest_postamat)
 
@@ -59,12 +60,12 @@ def optimize_by_solver(population_points,
         # Одновременно не более MAX_SIMULT_PROMO акций
     def con_metro_time_to_nearest_postamat(model, *data):
         _, object_id_metro, postomat_place_id = data
-        return model.metro_time_to_nearest_postamat[object_id_metro] >= distances_metro_dict[(object_id_metro, postomat_place_id)] * model.has_postomat[postomat_place_id]
+        return model.metro_time_to_nearest_postamat[object_id_metro] >= distances_metro_dict[(object_id_metro, postomat_place_id)] * model.has_postomat[postomat_place_id]+ BIG_NUM * (1-model.has_postomat[postomat_place_id])
 
     model.con_metro_time_to_nearest_postamat = pyo.Constraint( list(distanses_metro[['object_id_metro',	'object_id']].itertuples()) ,rule=con_metro_time_to_nearest_postamat)
 
 
-    model.needed_postamats = pyo.Constraint(expr=sum([model.has_postomat[p] for  p in postomat_places]) == quantity_postamats_to_place)
+    model.needed_postamats = pyo.Constraint(expr=sum([model.has_postomat[p] for  p in postomat_places]) <= quantity_postamats_to_place)
 
     sum_center_mass = sum(model.center_mass_time_to_nearest_postamat[p] * population_dict[p] for p in population_points)
     sum_metro = sum(model.metro_time_to_nearest_postamat[p] * population_dict[p] for p in object_id_metro_list)
