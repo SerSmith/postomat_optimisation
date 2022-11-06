@@ -448,7 +448,8 @@ def parse_banned_points_list(banned_points: List[str] = Query(None)) -> Optional
 
     return names_list
 def add_quates(obj_list):
-    return ["'" + str(s) + "'" for s in obj_list]
+    if obj_list is not None:
+        return ["'" + str(s) + "'" for s in obj_list]
 
 def make_points_lists(db,
                       object_type_filter_list,
@@ -456,6 +457,15 @@ def make_points_lists(db,
                       adm_areat_type_filter_list,
                       banned_points):
     
+    if object_type_filter_list is None:
+        object_type_filter_list = []
+    if district_type_filter_list is None:
+        district_type_filter_list = []
+    if adm_areat_type_filter_list is None:
+        adm_areat_type_filter_list = []
+    if banned_points is None:
+        banned_points = []
+
     objects = db.get_by_filter("all_objects_data", {"object_type": add_quates(object_type_filter_list),
                                                     "district": add_quates(district_type_filter_list),
                                                     "adm_area": add_quates(adm_areat_type_filter_list)

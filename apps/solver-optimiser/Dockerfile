@@ -7,9 +7,9 @@ ENV db_passw Optimists1!
 ENV db_port 5432
 ENV db_name postgres
 
-#RUN apt-get update -y
+RUN apt-get update -y
 
-#RUN apt-get install -y coinor-cbc coinor-libcbc-dev
+RUN apt-get install -y coinor-cbc coinor-libcbc-dev
 
 WORKDIR /code
 

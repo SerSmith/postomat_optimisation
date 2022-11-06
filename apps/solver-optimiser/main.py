@@ -28,11 +28,11 @@ def get_optimized_postomat_places(object_type_filter_list: List[str] = Depends(h
                                   adm_areat_type_filter_list: List[str] = Depends(h.parse_adm_areat_type_filter_list),
                                   fixed_points: List[str] = Depends(h.parse_list_fixed_points),
                                   banned_points: List[str] = Depends(h.parse_banned_points_list),
-                                  quantity_postamats_to_place=1500,
-                                  step=0.5,
-                                  metro_weight=0.5,
-                                  opt_tome=250,
-                                  max_time=15):
+                                  quantity_postamats_to_place:int =1500,
+                                  step:float =0.5,
+                                  metro_weight:float =0.5,
+                                  opt_tome:int =250,
+                                  max_time:int =15):
 
     kwargs = {'ratioGap': 0.00001, 'sec': opt_tome}
 
@@ -44,6 +44,8 @@ def get_optimized_postomat_places(object_type_filter_list: List[str] = Depends(h
                                              district_type_filter_list,
                                              adm_areat_type_filter_list,
                                              banned_points)
+    if fixed_points is None:
+        fixed_points = []
     
     possible_points = ["'" + str(s) + "'" for s in (list(possible_postomats) + list(fixed_points))]
 
@@ -97,14 +99,14 @@ if __name__ == "__main__":
     # possible_postomats = all_ponts[10:]
 
     res = get_optimized_postomat_places(object_type_filter_list=["киоск"],
-                                  district_type_filter_list=[],
-                                  adm_areat_type_filter_list=[],
-                                  fixed_points=[],
-                                  banned_points=[],
-                                  quantity_postamats_to_place=1500,
-                                  step=0.5,
-                                  metro_weight=0.5,
-                                  opt_tome=50,
-                                  max_time=15
-                                 )
+                                        district_type_filter_list=[],
+                                        adm_areat_type_filter_list=[],
+                                        fixed_points=[],
+                                        banned_points=[],
+                                        quantity_postamats_to_place=1500,
+                                        step=0.1,
+                                        metro_weight=0.5,
+                                        opt_tome=50,
+                                        max_time=15
+                                        )
     print(res)

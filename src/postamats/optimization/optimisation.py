@@ -72,8 +72,8 @@ def optimize_by_solver(population_points,
     model.OBJ = pyo.Objective(expr=((1 - metro_weight) * sum_center_mass + (metro_weight) * sum_metro), sense=pyo.minimize)
     # minimize
 
-
-    opt = SolverFactory('cbc', executable="/usr/local/Cellar/cbc/2.10.8/bin/cbc")
+    # , executable="/usr/local/Cellar/cbc/2.10.8/bin/cbc"
+    opt = SolverFactory('cbc')
 
     for key in kwargs:
         opt.options[key] = kwargs[key]
