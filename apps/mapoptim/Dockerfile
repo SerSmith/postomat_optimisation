@@ -3,6 +3,7 @@ FROM node:14-alpine AS build
 WORKDIR /usr/src/app
 COPY package.json package-lock.json ./
 RUN npm install
+RUN npm install --save @angular/cdk
 COPY . .
 RUN npm run build
 
