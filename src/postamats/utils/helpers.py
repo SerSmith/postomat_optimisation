@@ -386,14 +386,14 @@ def parse_inside(names):
     return names_list
 
 
-def parse_object_type_filter_list(object_type_filter: List[str] = Query(None, description="Список типов обектов размещения: 'киоск', 'cпортивный объект', 'библиотека', 'МФЦ', 'дом культуры или клуб' ...")) -> Optional[List]:
+def parse_object_type_filter_list(object_type_filter_list: List[str] = Query(None, description="Список типов обектов размещения: 'киоск', 'cпортивный объект', 'библиотека', 'МФЦ', 'дом культуры или клуб' ...")) -> Optional[List]:
     """
     accepts strings formatted as lists with square brackets
     names can be in the format
     "[bob,jeff,greg]" or '["bob","jeff","greg"]'
     """
 
-    names_list = parse_inside(object_type_filter)
+    names_list = parse_inside(object_type_filter_list)
 
     return names_list
 
