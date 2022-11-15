@@ -47,7 +47,9 @@ def get_kmeans_optimize_points(object_type_filter_list: List[str] = Depends(h.pa
                                             max_time=max_time,
                                             metro_weight=metro_weight,
                                             large_houses_priority=large_houses_priority,
-                                            is_local_run=False)
+                                            is_local_run=False,
+                                            dbscan_eps=400,
+                                            kmeans_clusters_coef=2)
 
 
     output = json.dumps({'optimized_points': optimised_list})

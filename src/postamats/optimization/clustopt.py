@@ -176,7 +176,8 @@ def set_cluster_postamats(clust_df: pd.DataFrame,
                           clust_area: float,
                           remain_postamats_quant: Optional[int]=None,
                           num_clusters_coef: int=2,
-                          dist_thresh: float=2*MAX_ACTIVE_RADIUS):
+                          dist_thresh: float=MAX_ACTIVE_RADIUS,
+                          postamat_effective_radius: float=MAX_ACTIVE_RADIUS):
     """_summary_
 
     Args:
@@ -204,8 +205,8 @@ def set_cluster_postamats(clust_df: pd.DataFrame,
         warn('На вход set_cluster_postamats получен датафрейм без данных о домах.'
         'Постаматы расставить нельзя, будет возвращен пустой результат.')
         return result
-
-    n_clusters = num_clusters_coef * int( np.ceil(clust_area / MAX_POSTAMAT_AREA) )
+    postamat_effective_area = 3.1415926535 * (postamat_effective_radius ** 2)
+    n_clusters = num_clusters_coef * int( np.ceil(clust_area / postamat_effective_area) )
     # если осталось меньше постаматов, чем хочет оптимизатор, берем, сколько осталось
     if remain_postamats_quant is not None:
         # если вдруг получили 0
@@ -315,7 +316,8 @@ def kmeans_optimize_points(possible_points: List[str],
                            metro_weight: float=0.5,
                            large_houses_priority: float=0.5,
                            is_local_run: bool=False,
-                           dbscan_eps: float=400) -> List[str]:
+                           dbscan_eps: float=400,
+                           kmeans_clusters_coef: float=2) -> List[str]:
     """_summary_
 
     Args:
@@ -420,8 +422,9 @@ def kmeans_optimize_points(possible_points: List[str],
         new_ids = set_cluster_postamats(apart_vs_points[lbl_cond],
                                         clusters_area[lbl],
                                         remain_postamats_quant=remain_postamats_quant,
-                                        num_clusters_coef=2,
-                                        dist_thresh=2*MAX_ACTIVE_RADIUS
+                                        num_clusters_coef=kmeans_clusters_coef,
+                                        dist_thresh=MAX_ACTIVE_RADIUS,
+                                        postamat_effective_radius=postamat_effective_radius
                                         )
         point_ids += new_ids
         remain_postamats_quant -= len(new_ids)
