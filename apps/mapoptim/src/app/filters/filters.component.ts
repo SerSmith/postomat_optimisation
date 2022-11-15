@@ -11,7 +11,7 @@ export class FiltersComponent implements OnInit {
   @Output() selectedFilters1 = new EventEmitter();
   @Output() selectedFilters2 = new EventEmitter();
 public types = ["киоск","cпортивный объект","библиотека","МФЦ","дом культуры или клуб"];
-public optTypes=['Оптимизация на основе солвера','Эврестическая модель на основе kmeans'];
+public optTypes=['Оптимизация на основе солвера','Эвристическая модель на основе kmeans'];
 public adm_area = [
   "Восточный административный округ",
     "Северо-Западный административный округ",

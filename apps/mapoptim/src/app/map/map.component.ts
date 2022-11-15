@@ -1,12 +1,15 @@
 import * as L from 'leaflet';
-import { Map, MapOptions, MarkerClusterGroup, MarkerClusterGroupOptions } from 'leaflet';
 import 'leaflet.markercluster';
+import 'leaflet.markercluster/dist/leaflet.markercluster';
+
 import {AfterViewInit, Component} from '@angular/core';
 import {MarkerService} from '../marker.service';
-import 'leaflet.heat/dist/leaflet-heat.js'
+// import 'leaflet.heat/dist/leaflet-heat.js'
+import '../leaflet-heat.js';
 
 import {OptimizationService} from "../optimization.service";
 import {MapPointsService} from "../map-points.service";
+
 
 const iconUrlGrey = '../../assets/grey.png';
 const iconUrlGreen = '../../assets/green.png';
@@ -25,6 +28,7 @@ const iconDefault = L.icon({
 });
 
 L.Marker.prototype.options.icon = iconDefault;
+
 
 @Component({
   selector: 'app-map',
@@ -107,10 +111,10 @@ export class MapComponent implements AfterViewInit {
       let option = this.setOptHeatMap(el.walk_time);
       heatPoint.push([el.lat, el.lon, option])
     })
-    if (this.heat) {
-      this.map.removeLayer(this.heat);
-    }
-    this.heat = (L as any).heatLayer(heatPoint, {radius: 16, minOpacity: 0.1}).addTo(this.map);
+    if(this.heat){
+    this.map.removeLayer(this.heat);}
+    this.heat = (L as any).heatLayer(heatPoint, {radius: 20, maxZoom: 7, opacity: 0.5,
+      blur: 10}).addTo(this.map);
   }
 
   public getRadius(currentZoom: any): any {
@@ -254,11 +258,14 @@ export class MapComponent implements AfterViewInit {
     } else {
       filters.banned_points = "";
     }
-
+    if (this.heat) {
+      this.map.removeLayer(this.heat);
+    }
     if (this.optType === 'Оптимизация на основе солвера') {
       this.optim.optim(filters).subscribe(rec => {
         this.loader = true;
         this.recommPoints = [];
+        this.recommIds = [];
         this.recomm = JSON.parse(rec);
         this.t.forEach((el: any) => {
           if (this.recomm.optimized_points.includes(el.object_id)) {
@@ -268,13 +275,15 @@ export class MapComponent implements AfterViewInit {
             this.loader = false;
           }
         })
-        this.mapGroup(this.map, this.t);
+        this.mapGroup(this.map, this.recommPoints);
         this.setHeatMap();
+        this.setSaveLink();
       });
     } else {
       this.optim.optim2(filters).subscribe(rec => {
         this.loader = true;
         this.recommPoints = [];
+        this.recommIds = [];
         this.recomm = JSON.parse(rec);
         this.t.forEach((el: any) => {
           if (this.recomm.optimized_points.includes(el.object_id)) {
@@ -284,7 +293,8 @@ export class MapComponent implements AfterViewInit {
             this.loader = false;
           }
         })
-        this.mapGroup(this.map, this.t);
+        this.mapGroup(this.map, this.recommPoints);
+        this.setSaveLink();
         this.setHeatMap();
       });
     }
@@ -295,7 +305,19 @@ export class MapComponent implements AfterViewInit {
   }
 
   public setHeatMap() {
-    let stringIds = this.arrayToString(this.recommIds);
+    let arr = new Array();
+    if (this.fixedIds.length) {
+      this.fixedIds.forEach((el: any) =>
+          arr.push(el)
+      )
+    }
+    if (this.recommIds.length) {
+      this.recommIds.forEach((el: any) =>
+          arr.push(el)
+      )
+    }
+    let stringIds = this.arrayToString(arr);
+    console.log(arr);
     this.optim.heatMap(stringIds)
       .subscribe(fields => {
         this.r = JSON.parse(fields[1]);
@@ -308,9 +330,12 @@ export class MapComponent implements AfterViewInit {
   public mapGroup(map: any, points: any) {
     if (this.markers) {
       map.removeLayer(this.markers);
+      this.markers = L.markerClusterGroup();
+    } else
+    {
+      this.markers = L.markerClusterGroup();
     }
-    this.markers = new L.MarkerClusterGroup();
-    
+
     for (let i = 0; i < points.length; i++) {
       let iconUrl = this.applyIcon(points[i].type);
       let marker = L.marker(new L.LatLng(points[i].lat, points[i].lon), {
@@ -352,11 +377,13 @@ export class MapComponent implements AfterViewInit {
           this.recommPoints.push(this.t.find((el: any) => el.object_id == event.id));
           this.recommIds.push(event.id);
           this.setSaveLink();
+          this.setHeatMap();
           break;
         case 'Фиксированная':
           this.fixedPoints.push(this.t.find((el: any) => el.object_id == event.id));
           this.fixedIds.push(event.id);
           this.setSaveLink();
+          this.setHeatMap();
           break;
         case 'Запрещенная':
           this.banPoints.push(this.t.find((el: any) => el.object_id == event.id));
@@ -370,6 +397,7 @@ export class MapComponent implements AfterViewInit {
           let rec = this.t.find((el: any) => el.object_id == event.id);
           this.recommPoints.slice(this.recommPoints.indexOf(rec),1);
           this.recommIds.slice(this.recommIds.indexOf(event.id),1);
+          console.log(this.recommIds);
           this.setSaveLink();
           break;
         case 'Фиксированная':
@@ -434,16 +462,19 @@ export class MapComponent implements AfterViewInit {
   }
 
   public setOptHeatMap(walk_time: number): number {
-    if (walk_time < 420) {
-      return 100;
+    if (walk_time <= 180) {
+      return 1;
     }
-    if (walk_time > 420 && walk_time < 600) {
-      return 60;
+    if (walk_time > 180 && walk_time <= 300) {
+      return 0.75;
+    }
+    if (walk_time > 300 && walk_time <= 600) {
+      return 0.5;
     }
     if (walk_time > 600 && walk_time < 900) {
-      return 40;
+      return 0.25;
     }
-    return 20;
+    return 0;
   }
 
   public setSaveLink() {
@@ -461,7 +492,6 @@ export class MapComponent implements AfterViewInit {
     }
     let stringArr = this.arrayToString(arr);
     let list_object_id: string;
-    console.log(stringArr);
     if (stringArr) {
       list_object_id = '&list_object_id=' + stringArr;
     } else {

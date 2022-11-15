@@ -1,99 +1,129 @@
-<button (click)="setFilter()">Фильтрация</button>
-<button (click)="setOpt()">Оптимизация</button>
+<button (click)="setFilter()" class="filters-button-f" [class.selected]="isFilters">
+    <div>Фильтрация</div>
+</button>
+<button (click)="setOpt()" class="filters-button-o" [class.selected]="isOpt">
+    <div class="filters-button-text">Оптимизация</div>
+</button>
 <div class="formFilters">
-  <form [formGroup]="optForm" *ngIf="isOpt" (change)="changeTypeOpt()">
-    <div class="formOptim">
-      <ng-container *ngFor="let optType of optTypes">
-        <label>
-          <input
-            type="radio"
-            [value]="optType"
-            formControlName="optSelect"
-          >
-          {{ optType }}
-        </label>
-      </ng-container>
-    </div>
-  </form>
-  <form [formGroup]="optionsForm">
-    <div class="formFilters-section">
-      <label class="formFilters-label">Тип объекта</label>
-      <select formControlName="selectedTypes" multiple>
-        <option *ngFor="let type of types">{{type}}</option>
-      </select>
-    </div>
-    <div class="formFilters-section">
-      <label class="formFilters-label">Округ</label>
-      <select formControlName="selectedArea" multiple>
-        <option *ngFor="let area of adm_area" value="{{area}}">{{area}}</option>
-      </select>
-    </div>
-    <div class="formFilters-section">
-      <label class="formFilters-label">Район</label>
-      <select formControlName="selectedDistricts" multiple>
-        <option *ngFor="let district of districts">{{district}}</option>
-      </select>
-    </div>
-    <ng-container *ngIf="isFilters">
-      <div>
-        <input formControlName="onlyRecommed"
-               type="checkbox"
-               id="onlyRecommed"
-               name="onlyRecommed"
-               value="onlyRecommed"/>
-        <label for="onlyRecommed">Показать рекомендованные</label>
-      </div>
-      <div>
-        <input formControlName="onlyBan"
-               type="checkbox"
-               id="onlyBan"
-               name="onlyBan"
-               [value]="true"/>
-        <label for="onlyBan">Показать запрещенные</label>
-      </div>
-      <div>
-        <input formControlName="onlyDop"
-               type="checkbox"
-               id="onlyDop"
-               name="onlyDop"
-               value="onlyDop"/>
-        <label for="onlyDop">Показать допустимые</label>
-      </div>
-      <div>
-        <input formControlName="onlyFix"
-               type="checkbox"
-               id="onlyFix"
-               name="onlyFix"
-               value="onlyFix"/>
-        <label for="onlyFix">Показать фиксированные</label>
-      </div>
-    </ng-container>
-    <ng-container *ngIf="isOpt">
-      <label>Количество постаматов:</label>
-      <input type="number" formControlName="postamatQuant" class="formFilters-counter"
-             min="1" max="5160">
-      <div>
-        <label>Важность метро</label>
-        <input formControlName="metroImportance" type="range" min="0" max="1" [step]="0.1">
-      </div>
-      <div *ngIf="this.selectedOptimization==='Эврестическая модель на основе kmeans'">
-        <label>Приоритет больших домов</label>
-        <input formControlName="large_houses_priority" type="range" min="0" max="1" [step]="0.1">
-      </div>
-      <div *ngIf="this.selectedOptimization==='Оптимизация на основе солвера'">
-        <label>Предельное количество минут,что бы дойти до постомата:</label>
-        <input type="number" formControlName="max_time" class="formFilters-counter"
-               min="1" max="100">
-      </div>
-      <div *ngIf="this.selectedOptimization==='Оптимизация на основе солвера'">
-        <label>Время работы оптимизатора в секундах:</label>
-        <input type="number" formControlName="opt_time" class="formFilters-counter"
-               min="50" max="1000">
-      </div>
+    <form [formGroup]="optForm" *ngIf="isOpt" (change)="changeTypeOpt()">
+        <div class="formOptim">
+            <ng-container *ngFor="let optType of optTypes">
+                <label class="filters-radio">
+                    <input class="radio"
+                           type="radio"
+                           [value]="optType"
+                           formControlName="optSelect"
+                    >
+                    <div class="label-radio">  {{ optType }}</div>
+                </label>
+            </ng-container>
+        </div>
+    </form>
+    <form [formGroup]="optionsForm">
+        <div class="formFilters-section">
+            <label class="formFilters-label">Тип объекта</label>
+            <select formControlName="selectedTypes" multiple class="filters-multiple">
+                <option class="filters-option" *ngFor="let type of types">{{type}}</option>
+            </select>
+        </div>
+        <div class="formFilters-section">
+            <label class="formFilters-label">Округ</label>
+            <select formControlName="selectedArea" multiple class="filters-multiple">
+                <option class="filters-option" *ngFor="let area of adm_area" value="{{area}}">{{area}}</option>
+            </select>
+        </div>
+        <div class="formFilters-section">
+            <label class="formFilters-label">Район</label>
+            <select formControlName="selectedDistricts" multiple class="filters-multiple">
+                <option class="filters-option" *ngFor="let district of districts">{{district}}</option>
+            </select>
+        </div>
+        <div class="filters-points" *ngIf="isFilters">
+            <div>
+                <input class="filters-check-input"
+                       formControlName="onlyRecommed"
+                       type="checkbox"
+                       id="onlyRecommed"
+                       name="onlyRecommed"
+                       value="onlyRecommed"/>
+                <label for="onlyRecommed" class="filters-check">
+                    <div class="filters-check-text">Показать рекомендованные</div>
+                </label>
+            </div>
+            <div>
+                <input formControlName="onlyBan"
+                       type="checkbox"
+                       id="onlyBan"
+                       class="filters-check-input"
+                       name="onlyBan"
+                       [value]="true"/>
+                <label for="onlyBan" class="filters-check">
+                    <div class="filters-check-text">Показать запрещенные</div>
+                </label>
+            </div>
+            <div>
+                <input formControlName="onlyDop"
+                       type="checkbox"
+                       id="onlyDop"
+                       class="filters-check-input"
+                       name="onlyDop"
+                       value="onlyDop"/>
+                <label for="onlyDop" class="filters-check">
+                    <div class="filters-check-text">Показать допустимые</div>
+                </label>
+            </div>
+            <div>
+                <input formControlName="onlyFix"
+                       type="checkbox"
+                       id="onlyFix"
+                       name="onlyFix"
+                       class="filters-check-input"
+                       value="onlyFix"/>
+                <label for="onlyFix" class="filters-check">
+                    <div class="filters-check-text">Показать фиксированные</div>
+                </label>
+            </div>
+        </div>
+        <ng-container *ngIf="isOpt">
+            <div class="filter-dop">
+                <label>
+                    <div class="filter-text">Количество постаматов:</div>
+                </label>
+                <input type="number" formControlName="postamatQuant" class="input-count"
+                       min="1" max="5160"></div>
+            <div class="filter-dop">
+                <label>
+                    <div class="filter-text">Важность метро:</div>
+                </label>
+                <input formControlName="metroImportance" type="range" min="0" max="1" [step]="0.1">
+            </div>
+            <div *ngIf="this.selectedOptimization==='Эвристическая модель на основе kmeans'" class="filter-dop">
+                <label>
+                    <div class="filter-text">Приоритет больших домов:</div>
+                </label>
+                <input formControlName="large_houses_priority" type="range" min="0" max="1" [step]="0.1">
+            </div>
+            <div *ngIf="this.selectedOptimization==='Оптимизация на основе солвера'" class="filter-dop">
+                <label>
+                    <div class="filter-text">Предельное количество минут,что бы дойти до постомата:</div>
+                </label>
+                <input type="number" formControlName="max_time" class="input-count"
+                       min="1" max="100">
+            </div>
+            <div *ngIf="this.selectedOptimization==='Оптимизация на основе солвера'" class="filter-dop">
+                <label>
+                    <div class="filter-text">Время работы оптимизатора в секундах:</div>
+                </label>
+                <input type="number" formControlName="opt_time" class="input-count"
+                       min="50" max="1000">
+            </div>
 
-    </ng-container>
-    <button class="button-f" (click)="test()" *ngIf="isFilters">применить</button>
-    <button class="button-f" (click)="test2()" *ngIf="isOpt" [disabled]="!selectedOptimization">оптимизировать</button>
-    <button class="button-f" (click)="test1()">отменить</button>
-  </form>
+        </ng-container>
+        <div class="filters-buttons">
+            <button class="button-f" (click)="test()" *ngIf="isFilters">применить</button>
+            <button class="button-f2" (click)="test2()" *ngIf="isOpt" [disabled]="!selectedOptimization">оптимизировать
+            </button>
+            <button class="button-f" (click)="test1()">отменить</button>
+        </div>
+    </form>
 </div>

@@ -1,37 +1,287 @@
-.formFilters{
-  /*width: 100%;*/
-  /*height: 98vh;*/
-  /*height: calc(100vh-40px);*/
-  /*background-color: #ffffff;*/
-  /*flex-direction: column;*/
-  padding: 20px;
-  /*box-shadow: 0 0 16px 4px rgba(0, 0, 0, 0.5);*/
+@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;1,100;1,300&display=swap');.formFilters {
+    padding: 20px;
+    font-family: 'Roboto', sans-serif;
 }
-.formFilters-section{
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 10px;
+
+.formFilters-section {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 10px;
 }
-.formFilters-label{
-  font-style: normal;
-  font-weight: 900;
-  font-size: 16px;
-  line-height: 24px;
-  padding-bottom: 4px;
-  margin-right: 6px;
+
+.formFilters-label {
+    font-style: normal;
+    font-weight: 900;
+    font-size: 16px;
+    line-height: 24px;
+    padding-bottom: 4px;
+    margin-right: 6px;
 }
-.formOptim{
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 10px;
+
+.formOptim {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 10px;
 }
-.formFilters-counter{
-  width: 100px;
+
+.formFilters-counter {
+    width: 100px;
 }
-.button-f{
-  margin:8px;
-  background-color: white;
-  border-radius:3px;
-  box-shadow: 0 0 2px 2px rgba(0, 0, 0, 0.5);
-  padding: 6px;
+
+.button-f {
+    width: 40%;
+    margin: 8px;
+    margin-top: 15px;
+    border-color: #001c30;
+    padding: 10px 15px;
+    background-color: #d2dce1;
+    border-radius: 8px;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 600;
+    color: #001c30;
+}
+.button-f:hover{
+    cursor: pointer;
+}
+.button-f:active{
+    background-color: rgba(0, 28, 48, 0.47);
+}
+.button-f2 {
+    width: 40%;
+    margin: 8px;
+    margin-top: 15px;
+    border-color: #001c30;
+    padding: 10px 8px;
+    background-color: #d2dce1;
+    border-radius: 8px;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 600;
+    color: #001c30;
+}
+.button-f2:hover{
+    cursor: pointer;
+}
+.button-f2:active{
+    background-color: rgba(0, 28, 48, 0.47);
+}
+.filters-button-f {
+    width: 50%;
+    background-color: #d2dce1;
+    padding: 10px 20px;
+    border-radius: 0 0 20px 0;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 600;
+}
+.filters-button-o {
+    width: 50%;
+    background-color: #d2dce1;
+    padding: 10px 20px;
+    border-radius: 0 0 0 20px;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 600;
+}
+
+.selected{
+    border-width: 2px 0 0 0;
+    background-color: white;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 600;
+}
+
+
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+/* Track */
+::-webkit-scrollbar-track {
+    background: #ffffff;
+}
+
+/* Handle */
+::-webkit-scrollbar-thumb {
+    background: #001c30;
+    border-radius: 6px;
+}
+
+/* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+    background: #001c30;
+}
+
+.filters-check { /* <-- стилизируем новый */
+    height: 12px;
+    width: 12px;
+    border: 1px solid #001c30;
+    display: inline-block;
+    position: relative;
+    background-color: #FFF;
+    border-radius: 2px;
+    padding: 3px;
+}
+
+[type=checkbox]:checked + .filters-check:before { /* <-- ставим иконку, когда чекбокс включен  */
+    content: '\2714';
+    position: absolute;
+    top: -5px;
+    left: 0;
+    font-size: 23px;
+    color: #001c30;
+}
+
+.filters-check-text {
+    margin-left: 25px;
+    width: 300px;
+    font-family: 'Roboto', sans-serif;
+}
+
+.filters-buttons {
+    position: absolute;
+    bottom: 20px;
+    width: 90%;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.filters-points {
+    display: flex;
+    margin: 20px 40px;
+    width: 100%;
+    flex-direction: column;
+    font-weight: 500;
+}
+.filters-multiple{
+    border-width:  2px 0 ;
+    border-color: #001c30;
+    border-radius: 15px 0 0 15px;
+    padding: 8px 15px;
+    height: 80px;
+}.filters-multiple:focus-visible{
+    border-width:  3px 0 ;
+    border-color: #001c30;
+    border-radius: 15px 0 0 15px;
+    padding: 8px 15px;
+    height: 80px;
+}
+.filters-button-text{
+    color: #001c30;
+}
+.filters-option{
+    font-family: 'Roboto', sans-serif;
+}
+.label-radio{
+    font-size: smaller;
+    padding-top: 8px;
+}
+
+input[type='radio'],
+label {
+    cursor: pointer;
+}
+
+.radio {
+    position: relative;
+    height: 22px;
+    width: 22px;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    outline: none;
+}
+
+.radio::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    border: 2px solid #001c30;
+}
+
+.radio:checked::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #001c30;
+    transform: translate(-50%, -50%);
+    visibility: visible;
+}
+.filters-radio{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+.filters-check-input{
+    display: none;
+}
+.filter-text{
+    font-size: small;
+    margin-right: 4px;
+}
+.filter-dop{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 8px;
+}
+.input-count{
+    width: 70px;
+    background-color: white;
+    border: 0 white solid;
+    border-bottom: 2px #001c30 solid;
+    text-align: center;
+}
+input[type=range]  {
+    width: 100px;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    outline: none;
+    overflow: hidden;
+    border-radius: 8px;
+    height: 10px;
+}
+
+input[type=range]::-webkit-slider-runnable-track {
+    height: 10px;
+    background-color: #d2dce1;
+    border-radius: 8px;
+}
+
+input[type=range]::-webkit-slider-thumb {
+    background: #001c30;
+    cursor: pointer;
+    width:10px;
+    height: 10px;
+    border-radius: 8px;
+    -webkit-appearance: none;
+    box-shadow: -200px  0 0 200px  #001c30;
+
+}
+
+input[type=range]::-moz-range-track {
+    height: 7px;
+    background-color: #d2dce1;
+}
+
+
+input[type=range]::-moz-range-thumb {
+    background: #ecf0f1;
+    cursor: pointer;
+    height: 7px;
+    border-radius:10px;
+    box-shadow: -200px  0px 0px 200px   #001c30;
+    padding: 0px;
+    margin: 0px;
 }

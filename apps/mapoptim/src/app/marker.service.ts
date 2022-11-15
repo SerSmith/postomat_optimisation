@@ -1,5 +1,4 @@
 import {EventEmitter, Injectable, Output} from '@angular/core';
-import * as L from 'leaflet';
 import {HttpClient} from "@angular/common/http";
 import {map, Observable} from "rxjs";
 import 'leaflet.markercluster';

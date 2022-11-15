@@ -2,12 +2,13 @@
   padding: 20px;
   position: relative;
   margin-bottom: 20px;
+  font-family: 'Roboto', sans-serif;
+  font-size: smaller;
 }
 .showInfo-label{
   margin-right: 4px;
   font-style: normal;
   font-weight: 900;
-  font-size: 16px;
   line-height: 24px;
 }
 .left-panel-icon{
