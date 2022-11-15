@@ -538,7 +538,7 @@ def calc_population(moscow_population: pd.DataFrame,
      и площади помещений
 
     Args:
-        moscow_population (pd.DataFrame): _description_
+        moscow_population (pd.DataFrame): https://gogov.ru/population-ru/msk
         all_apartment_houses (pd.DataFrame): _description_
 
     Returns:
