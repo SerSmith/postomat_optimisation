@@ -74,9 +74,9 @@ def calculate_weights(data: pd.DataFrame,
 
 
 def my_quality_score(mean_walk_time: float,
-                mean_population: float,
-                mean_wt_min: float,
-                mean_population_max: float) -> float:
+                    mean_population: float,
+                    mean_wt_min: float,
+                    mean_population_max: float) -> float:
     """Скор для каждой выбранной тчки установки постамата
 
     Args:
@@ -92,6 +92,36 @@ def my_quality_score(mean_walk_time: float,
     wt_score = mean_wt_min/mean_walk_time
     pop_score = mean_population / mean_population_max
     return 2 * (wt_score) * (pop_score) / (wt_score + pop_score)
+
+
+def my_density_score(max_density: float,
+                    max_population: float,
+                    density_arr: np.ndarray,
+                    population_arr: np.ndarray) -> np.ndarray:
+    """Считает геометрическое среднее нормированного населения кластера и
+     нормированной плотности населения
+
+    Args:
+        max_density (float): _description_
+        max_population (float): _description_
+        density_arr (np.ndarray): _description_
+        population_arr (np.ndarray): _description_
+
+    Raises:
+        ValueError: _description_
+
+    Returns:
+        np.ndarray: _description_
+    """
+    if max_density == 0 or max_population == 0:
+        raise ValueError('max_density or max_population = 0, ошибка в данных')
+    norm_density_arr = density_arr / max_density
+    norm_population_arr = population_arr / max_population
+    nominator = 2 * norm_density_arr * norm_population_arr
+    denominator = norm_density_arr + norm_population_arr
+    result = nominator / denominator
+    result[result==np.inf] = 0
+    return result
 
 
 def sort_clusters_by_density(data: pd.DataFrame,
@@ -116,7 +146,7 @@ def sort_clusters_by_density(data: pd.DataFrame,
 
     clusters_population_density = np.zeros((len_labels,))
     clusters_area = np.zeros((len_labels,))
-
+    cluster_population = np.zeros((len_labels,))
     for lbl in set(data[label_col]).difference({-1}):
 
         slice_df = data[data[label_col]==lbl].copy()
@@ -127,10 +157,18 @@ def sort_clusters_by_density(data: pd.DataFrame,
         slice_df['y_step'] = (slice_df['y'] // y_step).astype(int)
         population_by_cell = slice_df.groupby(['x_step', 'y_step'])[population_col].sum()
         clusters_area[lbl] = population_by_cell.shape[0] * cell_area
-        slice_population_density = population_by_cell.sum() / clusters_area[lbl]
+        cluster_population[lbl] = population_by_cell.sum()
+        slice_population_density = cluster_population[lbl] / clusters_area[lbl]
         clusters_population_density[lbl] = slice_population_density
 
-    clusters_by_density = np.argsort(clusters_population_density)[::-1]
+    max_density = clusters_population_density.max()
+    max_population = cluster_population.max()
+    clusters_by_density = my_density_score(max_density,
+                                           max_population,
+                                           clusters_population_density,
+                                           cluster_population)
+
+    clusters_by_density = np.argsort(clusters_by_density)[::-1]
     return clusters_population_density, clusters_area, clusters_by_density
 
 
@@ -276,7 +314,8 @@ def kmeans_optimize_points(possible_points: List[str],
                            max_time: float=15,
                            metro_weight: float=0.5,
                            large_houses_priority: float=0.5,
-                           is_local_run: bool=False) -> List[str]:
+                           is_local_run: bool=False,
+                           dbscan_eps: float=400) -> List[str]:
     """_summary_
 
     Args:
@@ -362,7 +401,7 @@ def kmeans_optimize_points(possible_points: List[str],
     apart_vs_points[WEIGHT_COL] = sample_weight
 
     # теперь мы кластеризуем оставшиес точки притяжения
-    dbscan = DBSCAN(eps=400, min_samples=5)
+    dbscan = DBSCAN(eps=dbscan_eps, min_samples=5)
     labels=dbscan.fit_predict(apart_vs_points[['x', 'y']], sample_weight=sample_weight)
     apart_vs_points['label'] = labels
 
