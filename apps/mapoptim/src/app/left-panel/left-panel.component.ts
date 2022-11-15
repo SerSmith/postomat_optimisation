@@ -1,4 +1,4 @@
-import {Component, EventEmitter, Input, OnInit, Output} from '@angular/core';
+import {Component, EventEmitter, Input, OnChanges, Output} from '@angular/core';
 import {FormControl, FormGroup} from "@angular/forms";
 
 @Component({
@@ -6,29 +6,24 @@ import {FormControl, FormGroup} from "@angular/forms";
   templateUrl: './left-panel.component.html',
   styleUrls: ['./left-panel.component.css']
 })
-export class LeftPanelComponent implements OnInit {
+export class LeftPanelComponent implements OnChanges {
   @Output() closeInformation = new EventEmitter();
   @Output() changePointType = new EventEmitter();
   @Input() selectedPoint: any;
   public typeForm: FormGroup;
-  public types = ['recom', 'fixed', 'ban', 'permis'];
+  public types = ['Рекомендованная', 'Фиксированная', 'Запрещенная', 'Допустимая'];
   public select = [];
-  public typesMap = {
-    recom: "Рекомендованная",
-    fixed: 'Фиксированная',
-    ban: 'Запрещенная',
-    permis: 'Допустимая'
-  }
+  public prevType: any;
 
   constructor() {
     this.typeForm = new FormGroup({
-      selectType: new FormControl(),
+      selectType: new FormControl(null),
     })
   }
 
-  ngOnInit(): void {
-    this.select = [];
-    (this.select as any)[this.selectedPoint.type] = true;
+  ngOnChanges(): void {
+    this.prevType = this.selectedPoint.type ? this.selectedPoint.type : 'Допустимая';
+    this.typeForm.setValue({selectType: this.prevType});
   }
 
   public closeInfo() {
@@ -39,7 +34,8 @@ export class LeftPanelComponent implements OnInit {
     this.changePointType.emit(
       {
         id: this.selectedPoint.object_id,
-        type: this.typeForm.value.selectType
+        type: this.typeForm.value.selectType,
+        prevType: this.prevType
       });
   }
 }

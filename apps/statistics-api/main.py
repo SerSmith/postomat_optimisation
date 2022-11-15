@@ -14,7 +14,13 @@ from fastapi.responses import StreamingResponse
 from slugify import slugify
 import io
 
-app = FastAPI()
+app = FastAPI(title="statistics-api",
+              description="Сервис, который подтягивает данные и считает некоторые характеристики расставленных постоматов",
+              version="2.0.0",
+              сontact={
+                    "name": "Кузнецова Марина",
+                    "email": "mila_601@mail.ru",
+                })
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,14 +30,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/say_hi")
-def get_possible_postomat_places():
-
-    return {"Hello": "World"}
-
 
 @app.get("/get_all_postomat_places")
-def get_all_postomat_places():
+def get_all_possible_postomat_places():
 
     db = connections.DB()
 
@@ -56,13 +57,15 @@ def get_optimized_postomat_places(possible_points: List[str] = Depends(parse_lis
     # all_postamat_places = db.get_by_sql("select * from all_objects_data where object_type!='многоквартирный дом' ")
     # postamat_places = pd.merge(all_postamat_places,fixed_points_df, on='object_id', how='inner' )
     return json.dumps({'optimized_points': list(postamat_places.object_id)})
-    #return fixed_points
+
 
 
 
 
 @app.get("/get_point_statistics")
-def find_heat_map(step: float = 1, walk_time: float = 15, object_id_str: List[str] = Depends(parse_list_object_id)):
+def find_heat_map(step: float = 0.1, 
+                    walk_time: float = 15, 
+                    object_id_str: List[str] = Depends(parse_list_object_id)):
 
     db = connections.DB()
     walk_time = walk_time * 60 # переводим в секунды
@@ -82,7 +85,10 @@ def find_heat_map(step: float = 1, walk_time: float = 15, object_id_str: List[st
     return quantity_people_to_postomat.to_json(orient='records'), distance_till_nearest_postomat.to_json(orient='records') , json.dumps(list_for_json_percent)  
 
 @app.get("/get_excel")
-def get_excel(method_name: str, postomat_points: List[str] = Depends(parse_list_object_id),  walk_time: float = 15, step: float = 0.5):
+def get_excel(method_name: str, 
+                postomat_points: List[str] = Depends(parse_list_object_id),  
+                walk_time: float = 15, 
+                step: float = 0.5):
 
     db = connections.DB()
     walk_time = walk_time*60

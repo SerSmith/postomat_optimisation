@@ -22,9 +22,16 @@
 }
 .formOptim{
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   margin-bottom: 10px;
 }
 .formFilters-counter{
   width: 100px;
+}
+.button-f{
+  margin:8px;
+  background-color: white;
+  border-radius:3px;
+  box-shadow: 0 0 2px 2px rgba(0, 0, 0, 0.5);
+  padding: 6px;
 }
