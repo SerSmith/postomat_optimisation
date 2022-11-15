@@ -80,7 +80,7 @@ def find_heat_map(step: float = 0.1,
     for i in list_time_s:
         distance_matrix_filter[f'less_{i}'] = distance_matrix_filter['distance']<i
         list_result_percent.append(center_mass_pd[center_mass_pd.id_center_mass.isin(distance_matrix_filter[distance_matrix_filter[f'less_{i}']].id_center_mass)].population.sum())
-    list_result_percent = [round(population,3)*100/population_all for population in list_result_percent]
+    list_result_percent = [round(population) for population in list_result_percent]
     list_for_json_percent = [{"time" : list_time_m[0], "percent_people" : list_result_percent[0]},{"time":list_time_m[1], "percent_people": list_result_percent[1]}, {"time":list_time_m[2], "percent_people": list_result_percent[2]}, {"time":list_time_m[3],"percent_people":list_result_percent[3]}]
     return quantity_people_to_postomat.to_json(orient='records'), distance_till_nearest_postomat.to_json(orient='records') , json.dumps(list_for_json_percent)  
 
@@ -101,12 +101,14 @@ def get_excel(method_name: str,
     postamat_places = db.get_by_filter("all_objects_data", {"object_id": postomat_points} )
     postamat_places['Модель расчета'] = method_name
 
-    postamat_places = postamat_places.reset_index()
     quantity_people_to_postomat, _ = calculate_workload(center_mass_pd, distance_matrix_filter)
 
-    postamat_places = postamat_places.merge(quantity_people_to_postomat, on="object_id", how='left')
+    postamat_places = postamat_places.merge(quantity_people_to_postomat, on="object_id", how='inner')
     postamat_places.population = postamat_places.population.fillna(0)
     postamat_places.population = postamat_places.population.astype(int)
+    postamat_places = postamat_places.sort_values('population', ascending=False)
+    postamat_places = postamat_places.reset_index(drop=True)
+    postamat_places = postamat_places.reset_index()
 
     COLUMNS_RENAME = {
         'index': 'No п/п (номер по порядку)',
