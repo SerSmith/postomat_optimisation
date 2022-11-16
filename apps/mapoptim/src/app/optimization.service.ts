@@ -43,6 +43,8 @@ export class OptimizationService {
     }).pipe(map(r => r));
   }
   public optim2(filter: any): Observable<any> {
+    console.log(filter.selectedTypes);
+    console.log(filter.selectedArea);
     let param = "?quantity_postamats_to_place="+filter.postamatQuant+"&step=0.1&metro_weight="+
       filter.metroImportance+"&large_houses_priority="+filter.large_houses_priority+"&max_time="+
       filter.max_time+filter.selectedTypes+filter.selectedDistricts+
